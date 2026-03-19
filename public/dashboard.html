@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Patel Society Portal</title>
+    <meta name="description" content="Patel Society Portal - Admin Dashboard">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="navbar"></div>
+
+    <main class="main-content">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Dashboard</h1>
+                <p class="page-subtitle">Society overview and balance tracking</p>
+            </div>
+            <div class="admin-only">
+                <button class="btn btn-primary" onclick="openBalanceModal()">💰 Update Balance</button>
+            </div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card green">
+                <div class="stat-icon">💰</div>
+                <div class="stat-label">Society Balance</div>
+                <div class="stat-value" id="totalBalance">₹0</div>
+            </div>
+            <div class="stat-card gold">
+                <div class="stat-icon">📋</div>
+                <div class="stat-label">Pending Loans</div>
+                <div class="stat-value" id="pendingLoans">₹0</div>
+            </div>
+            <div class="stat-card blue">
+                <div class="stat-icon">📊</div>
+                <div class="stat-label">Active Loans</div>
+                <div class="stat-value" id="activeLoans">0</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-icon">👥</div>
+                <div class="stat-label">Total Members</div>
+                <div class="stat-value" id="totalMembers">0</div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card green">
+                <div class="stat-icon">🏦</div>
+                <div class="stat-label">Total Accounts</div>
+                <div class="stat-value" id="totalAccounts">0</div>
+            </div>
+            <div class="stat-card blue">
+                <div class="stat-icon">✅</div>
+                <div class="stat-label">Completed Loans</div>
+                <div class="stat-value" id="completedLoans">0</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Update Balance Modal -->
+    <div class="modal-overlay" id="balanceModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Update Society Balance</h3>
+                <button class="modal-close" onclick="closeModal('balanceModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Current Balance (₹)</label>
+                    <input class="form-input" type="number" id="balanceInput" placeholder="Enter balance amount">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('balanceModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="updateBalance()">Update</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

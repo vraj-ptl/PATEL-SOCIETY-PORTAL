@@ -1,0 +1,16 @@
+{
+  "name": "patel-society-portal",
+  "version": "1.0.0",
+  "description": "Patel Community Society Management Portal",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sql.js": "^1.10.2",
+    "bcryptjs": "^2.4.3",
+    "express-session": "^1.17.3"
+  }
+}
