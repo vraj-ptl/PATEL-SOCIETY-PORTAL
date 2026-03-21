@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { getOne, getAll, runQuery } = require('../database');
 const { requireLogin, requireAdmin } = require('../middleware/auth');
+const Loan = require('../models/Loan');
+const Installment = require('../models/Installment');
+const Account = require('../models/Account');
+const Member = require('../models/Member');
+const SocietyBalance = require('../models/SocietyBalance');
 
-// Loan plan configurations
 const LOAN_PLANS = {
     '50000_1': {
         principal: 50000, years: 1, interest: 1500, totalAmount: 51500,
@@ -50,66 +53,69 @@ function getMonthLabel(startMonth, startYear, offset) {
 }
 
 // GET /api/loans — list all loans
-router.get('/', requireLogin, (req, res) => {
+router.get('/', requireLogin, async (req, res) => {
     try {
         let loans;
         if (req.session.user.role === 'admin') {
-            loans = getAll(`
-                SELECT l.*, a.account_no 
-                FROM loans l 
-                JOIN accounts a ON l.account_id = a.id 
-                ORDER BY l.created_at DESC
-            `);
+            loans = await Loan.find().sort({ created_at: -1 }).populate('account_id', 'account_no').lean();
         } else {
-            loans = getAll(`
-                SELECT l.*, a.account_no 
-                FROM loans l 
-                JOIN accounts a ON l.account_id = a.id 
-                WHERE l.account_id = ?
-                ORDER BY l.created_at DESC
-            `, [req.session.user.account_id]);
+            loans = await Loan.find({ account_id: req.session.user.account_id })
+                .sort({ created_at: -1 }).populate('account_id', 'account_no').lean();
         }
 
-        const result = loans.map(loan => {
-            const member = getOne('SELECT name FROM members WHERE account_id = ? ORDER BY position LIMIT 1', [loan.account_id]);
-            return { ...loan, member_name: member ? member.name : 'Unknown' };
-        });
+        const result = await Promise.all(loans.map(async (loan) => {
+            if (!loan.account_id) {
+                return {
+                    ...loan,
+                    id: loan._id,
+                    account_no: 'Deleted/Unknown',
+                    member_name: 'Unknown Member'
+                };
+            }
+            
+            const member = await Member.findOne({ account_id: loan.account_id._id }).sort('position').lean();
+            return {
+                ...loan,
+                id: loan._id,
+                account_no: loan.account_id.account_no,
+                member_name: member ? member.name : 'Unknown'
+            };
+        }));
 
         res.json(result);
     } catch (err) {
+        console.error('Error fetching loans:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 // GET /api/loans/:id — get loan detail with installments
-router.get('/:id', requireLogin, (req, res) => {
+router.get('/:id', requireLogin, async (req, res) => {
     try {
-        const loan = getOne(`
-            SELECT l.*, a.account_no 
-            FROM loans l 
-            JOIN accounts a ON l.account_id = a.id 
-            WHERE l.id = ?
-        `, [parseInt(req.params.id)]);
+        const loan = await Loan.findById(req.params.id).populate('account_id', 'account_no').lean();
+        if (!loan) return res.status(404).json({ error: 'Loan not found' });
 
-        if (!loan) {
-            return res.status(404).json({ error: 'Loan not found' });
-        }
-
-        if (req.session.user.role === 'member' && req.session.user.account_id !== loan.account_id) {
+        if (req.session.user.role === 'member' && req.session.user.account_id !== loan.account_id._id.toString()) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        const installments = getAll('SELECT * FROM installments WHERE loan_id = ? ORDER BY installment_no', [loan.id]);
-        const members = getAll('SELECT name FROM members WHERE account_id = ? ORDER BY position', [loan.account_id]);
+        const installments = await Installment.find({ loan_id: loan._id }).sort('installment_no').lean();
+        const members = await Member.find({ account_id: loan.account_id._id }).sort('position').lean();
 
-        res.json({ ...loan, installments, members: members.map(m => m.name) });
+        res.json({
+            ...loan,
+            id: loan._id,
+            account_no: loan.account_id.account_no,
+            installments: installments.map(i => ({...i, id: i._id})),
+            members: members.map(m => m.name)
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 // POST /api/loans — create new loan
-router.post('/', requireAdmin, (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
     try {
         const { account_no, principal, time_period_years, start_month, start_year } = req.body;
 
@@ -117,131 +123,162 @@ router.post('/', requireAdmin, (req, res) => {
             return res.status(400).json({ error: 'All fields are required' });
         }
 
-        const account = getOne('SELECT * FROM accounts WHERE account_no = ?', [account_no]);
-        if (!account) {
-            return res.status(404).json({ error: 'Account not found' });
-        }
+        const account = await Account.findOne({ account_no });
+        if (!account) return res.status(404).json({ error: 'Account not found' });
 
         const planKey = `${principal}_${time_period_years}`;
         const plan = LOAN_PLANS[planKey];
-        if (!plan) {
-            return res.status(400).json({ error: 'Invalid loan plan' });
-        }
+        if (!plan) return res.status(400).json({ error: 'Invalid loan plan' });
 
-        const result = runQuery(`
-            INSERT INTO loans (account_id, principal, time_period_years, interest, total_amount, total_installments, start_month, start_year, remaining_balance, total_paid)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-        `, [account.id, plan.principal, time_period_years, plan.interest,
-            plan.totalAmount, plan.installments.length, start_month, start_year, plan.totalAmount]);
-
-        const loanId = result.lastInsertRowid;
-
-        plan.installments.forEach((inst, index) => {
-            const monthLabel = getMonthLabel(start_month, start_year, index);
-            runQuery(`
-                INSERT INTO installments (loan_id, installment_no, month_label, default_amount, paid_amount, is_paid)
-                VALUES (?, ?, ?, ?, 0, 0)
-            `, [loanId, index + 1, monthLabel, inst.amount]);
+        const loan = new Loan({
+            account_id: account._id,
+            principal: plan.principal,
+            time_period_years: time_period_years,
+            interest: plan.interest,
+            total_amount: plan.totalAmount,
+            total_installments: plan.installments.length,
+            start_month: start_month,
+            start_year: start_year,
+            remaining_balance: plan.totalAmount,
+            total_paid: 0
         });
+        await loan.save();
+
+        const installmentDocs = plan.installments.map((inst, index) => ({
+            loan_id: loan._id,
+            installment_no: index + 1,
+            month_label: getMonthLabel(start_month, start_year, index),
+            default_amount: inst.amount,
+            paid_amount: 0,
+            is_paid: false
+        }));
+        await Installment.insertMany(installmentDocs);
 
         // Update society balance
-        runQuery(`
-            UPDATE society_balance SET 
-                total_balance = total_balance - ?,
-                total_pending_loans = total_pending_loans + ?
-            WHERE id = 1
-        `, [plan.principal, plan.totalAmount]);
+        const balance = await SocietyBalance.findOne();
+        if (balance) {
+            balance.total_balance -= plan.principal;
+            balance.total_pending_loans += plan.totalAmount;
+            await balance.save();
+        }
 
-        const loan = getOne('SELECT l.*, a.account_no FROM loans l JOIN accounts a ON l.account_id = a.id WHERE l.id = ?', [loanId]);
-        const installments = getAll('SELECT * FROM installments WHERE loan_id = ? ORDER BY installment_no', [loanId]);
+        const populatedLoan = await Loan.findById(loan._id).populate('account_id', 'account_no').lean();
+        const finalInstallments = await Installment.find({ loan_id: loan._id }).sort('installment_no').lean();
 
-        res.status(201).json({ ...loan, installments });
+        res.status(201).json({
+            ...populatedLoan,
+            id: populatedLoan._id,
+            account_no: populatedLoan.account_id.account_no,
+            installments: finalInstallments.map(i => ({...i, id: i._id}))
+        });
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
 });
 
 // PUT /api/loans/:id/installments/:installmentNo — pay an installment
-router.put('/:id/installments/:installmentNo', requireAdmin, (req, res) => {
+router.put('/:id/installments/:installmentNo', requireAdmin, async (req, res) => {
     try {
         const { paid_amount } = req.body;
-        const loanId = parseInt(req.params.id);
-        const installmentNo = parseInt(req.params.installmentNo);
+        const paidAmountNum = Number(paid_amount);
 
-        if (paid_amount === undefined || paid_amount < 0) {
+        if (paid_amount === undefined || isNaN(paidAmountNum) || paidAmountNum < 0) {
             return res.status(400).json({ error: 'Valid paid amount is required' });
         }
 
-        const loan = getOne('SELECT * FROM loans WHERE id = ?', [loanId]);
+        const loan = await Loan.findById(req.params.id);
         if (!loan) return res.status(404).json({ error: 'Loan not found' });
 
-        const installment = getOne('SELECT * FROM installments WHERE loan_id = ? AND installment_no = ?', [loanId, installmentNo]);
+        const installment = await Installment.findOne({ loan_id: loan._id, installment_no: req.params.installmentNo });
         if (!installment) return res.status(404).json({ error: 'Installment not found' });
 
         if (installment.is_paid) return res.status(400).json({ error: 'Installment already paid' });
 
-        const actualPaid = paid_amount;
+        const actualPaid = paidAmountNum;
 
-        // Mark current installment as paid
-        runQuery("UPDATE installments SET paid_amount = ?, is_paid = 1, paid_date = date('now') WHERE loan_id = ? AND installment_no = ?",
-            [actualPaid, loanId, installmentNo]);
+        installment.paid_amount = actualPaid;
+        installment.is_paid = true;
+        installment.paid_date = new Date().toISOString().split('T')[0];
+        await installment.save();
 
-        // Handle overpayment
         let excess = actualPaid - installment.default_amount;
         if (excess > 0) {
-            const futureInstallments = getAll(
-                'SELECT * FROM installments WHERE loan_id = ? AND installment_no > ? AND is_paid = 0 ORDER BY installment_no',
-                [loanId, installmentNo]
-            );
+            const futureInstallments = await Installment.find({
+                loan_id: loan._id,
+                installment_no: { $gt: req.params.installmentNo },
+                is_paid: false
+            }).sort('installment_no');
 
             for (const future of futureInstallments) {
                 if (excess <= 0) break;
 
                 if (excess >= future.default_amount) {
-                    runQuery("UPDATE installments SET paid_amount = 0, default_amount = 0, is_paid = 1, paid_date = date('now') WHERE id = ?",
-                        [future.id]);
                     excess -= future.default_amount;
+                    future.paid_amount = 0;
+                    future.default_amount = 0;
+                    future.is_paid = true;
+                    future.paid_date = new Date().toISOString().split('T')[0];
+                    await future.save();
                 } else {
-                    runQuery('UPDATE installments SET default_amount = default_amount - ? WHERE id = ?',
-                        [excess, future.id]);
+                    future.default_amount -= excess;
                     excess = 0;
+                    await future.save();
                 }
             }
         }
 
-        // Update loan totals
-        const allInstallments = getAll('SELECT * FROM installments WHERE loan_id = ?', [loanId]);
+        const allInstallments = await Installment.find({ loan_id: loan._id });
         const totalPaid = allInstallments.reduce((sum, i) => sum + i.paid_amount, 0);
         const remainingBalance = allInstallments.reduce((sum, i) => i.is_paid ? sum : sum + i.default_amount, 0);
         const allPaid = allInstallments.every(i => i.is_paid);
 
-        runQuery('UPDATE loans SET total_paid = ?, remaining_balance = ?, status = ? WHERE id = ?',
-            [totalPaid, remainingBalance, allPaid ? 'completed' : 'active', loanId]);
+        loan.total_paid = totalPaid;
+        loan.remaining_balance = remainingBalance;
+        loan.status = allPaid ? 'completed' : 'active';
+        await loan.save();
 
-        // Update society balance
-        runQuery('UPDATE society_balance SET total_balance = total_balance + ?, total_pending_loans = total_pending_loans - ? WHERE id = 1',
-            [actualPaid, actualPaid]);
+        const balance = await SocietyBalance.findOne();
+        if (balance) {
+            balance.total_balance += actualPaid;
+            balance.total_pending_loans -= actualPaid;
+            
+            // If loan just finished, add its interest to global tracking pool
+            if (loan.status === 'completed') {
+                balance.total_lifetime_interest_earned += loan.interest;
+            }
+            
+            await balance.save();
+        }
 
-        const updatedLoan = getOne('SELECT l.*, a.account_no FROM loans l JOIN accounts a ON l.account_id = a.id WHERE l.id = ?', [loanId]);
-        const updatedInstallments = getAll('SELECT * FROM installments WHERE loan_id = ? ORDER BY installment_no', [loanId]);
+        const updatedLoan = await Loan.findById(loan._id).populate('account_id', 'account_no').lean();
+        const updatedInstallments = await Installment.find({ loan_id: loan._id }).sort('installment_no').lean();
 
-        res.json({ ...updatedLoan, installments: updatedInstallments });
+        res.json({
+            ...updatedLoan,
+            id: updatedLoan._id,
+            account_no: updatedLoan.account_id.account_no,
+            installments: updatedInstallments.map(i => ({...i, id: i._id}))
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 // DELETE /api/loans/:id — delete a loan
-router.delete('/:id', requireAdmin, (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
     try {
-        const loan = getOne('SELECT * FROM loans WHERE id = ?', [parseInt(req.params.id)]);
+        const loan = await Loan.findById(req.params.id);
         if (!loan) return res.status(404).json({ error: 'Loan not found' });
 
-        runQuery('UPDATE society_balance SET total_balance = total_balance + ?, total_pending_loans = total_pending_loans - ? WHERE id = 1',
-            [loan.principal - loan.total_paid, loan.remaining_balance]);
+        const balance = await SocietyBalance.findOne();
+        if (balance) {
+            balance.total_balance += (loan.principal - loan.total_paid);
+            balance.total_pending_loans -= loan.remaining_balance;
+            await balance.save();
+        }
 
-        runQuery('DELETE FROM installments WHERE loan_id = ?', [loan.id]);
-        runQuery('DELETE FROM loans WHERE id = ?', [loan.id]);
+        await Installment.deleteMany({ loan_id: loan._id });
+        await Loan.findByIdAndDelete(loan._id);
 
         res.json({ message: 'Loan deleted successfully' });
     } catch (err) {

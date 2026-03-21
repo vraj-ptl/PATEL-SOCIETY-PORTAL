@@ -1,11 +1,14 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+app.use(cors({ origin: 'http://localhost:5173', credentials: true })); // For Vite React Dev Server
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
@@ -17,19 +20,28 @@ app.use(session({
     }
 }));
 
-// Serve static files
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Serve static files from React build (when built)
+// app.use(express.static(path.join(__dirname, '..', 'client', 'dist')));
 
-// API Routes (loaded after DB init)
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/accounts', require('./routes/members'));
-app.use('/api/loans', require('./routes/loans'));
-app.use('/api/dashboard', require('./routes/dashboard'));
+// API Routes
+const authRoutes = require('./routes/auth');
+const dashboardRoutes = require('./routes/dashboard');
+const accountRoutes = require('./routes/members');
+const loanRoutes = require('./routes/loans');
+const feeRoutes = require('./routes/fees');
 
-// Serve index.html for root
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/loans', loanRoutes);
+app.use('/api/fees', feeRoutes);
+
+// Fallback to React index
+/*
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'client', 'dist', 'index.html'));
 });
+*/
 
 // Start server after DB initialization
 async function start() {
@@ -37,11 +49,10 @@ async function start() {
     await initializeDatabase();
 
     app.listen(PORT, () => {
-        console.log(`\n  🏛️  Patel Society Portal Server`);
+        console.log(`\n  🏛️  Patel Society Portal Server (MongoDB Version)`);
         console.log(`  ═══════════════════════════════`);
         console.log(`  🌐 Running at: http://localhost:${PORT}`);
-        console.log(`  👤 Admin Login: admin / admin123`);
-        console.log(`  📁 Database: data/society.db\n`);
+        console.log(`  👤 Admin Login: admin / admin123\n`);
     });
 }
 

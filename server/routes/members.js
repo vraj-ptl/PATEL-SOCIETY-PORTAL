@@ -1,23 +1,62 @@
 const express = require('express');
 const router = express.Router();
-const { getOne, getAll, runQuery } = require('../database');
 const bcrypt = require('bcryptjs');
 const { requireLogin, requireAdmin } = require('../middleware/auth');
+const Account = require('../models/Account');
+const Member = require('../models/Member');
+const User = require('../models/User');
+const Loan = require('../models/Loan');
+const SocietyBalance = require('../models/SocietyBalance');
+const MonthlyFee = require('../models/MonthlyFee');
+
+const FEE_START_YEAR = 2018;
+const FEE_START_MONTH = 8; // August
+
+// Auto-create paid MonthlyFee records for all months from Aug 2018 to current month
+async function createPastFeeRecords(memberId, accountId, joinDate) {
+    const now = joinDate || new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    const feeRecords = [];
+    for (let y = FEE_START_YEAR; y <= currentYear; y++) {
+        const startM = (y === FEE_START_YEAR) ? FEE_START_MONTH : 1;
+        const endM = (y === currentYear) ? currentMonth : 12;
+        for (let m = startM; m <= endM; m++) {
+            feeRecords.push({
+                member_id: memberId,
+                account_id: accountId,
+                month: m,
+                year: y,
+                amount: 500,
+                is_paid: true,
+                paid_date: now
+            });
+        }
+    }
+
+    if (feeRecords.length > 0) {
+        // Use ordered: false so duplicates are silently skipped
+        try {
+            await MonthlyFee.insertMany(feeRecords, { ordered: false });
+        } catch (err) {
+            // Ignore duplicate key errors (code 11000), throw others
+            if (err.code !== 11000 && !(err.writeErrors && err.writeErrors.every(e => e.err.code === 11000))) {
+                throw err;
+            }
+        }
+    }
+}
 
 // GET /api/accounts — list all accounts with their members
-router.get('/', requireLogin, (req, res) => {
+router.get('/', requireLogin, async (req, res) => {
     try {
-        let accounts;
-        if (req.session.user.role === 'admin') {
-            accounts = getAll('SELECT * FROM accounts ORDER BY account_no');
-        } else {
-            accounts = getAll('SELECT * FROM accounts WHERE id = ?', [req.session.user.account_id]);
-        }
+        const accounts = await Account.find().sort('account_no').lean();
 
-        const result = accounts.map(acc => {
-            const members = getAll('SELECT * FROM members WHERE account_id = ? ORDER BY position', [acc.id]);
-            return { ...acc, members };
-        });
+        const result = await Promise.all(accounts.map(async (acc) => {
+            const members = await Member.find({ account_id: acc._id }).sort('position').lean();
+            return { ...acc, id: acc._id, members: members.map(m => ({...m, id: m._id})) };
+        }));
 
         res.json(result);
     } catch (err) {
@@ -26,140 +65,182 @@ router.get('/', requireLogin, (req, res) => {
 });
 
 // GET /api/accounts/:accountNo — get single account
-router.get('/:accountNo', requireLogin, (req, res) => {
+router.get('/:accountNo', requireLogin, async (req, res) => {
     try {
-        const account = getOne('SELECT * FROM accounts WHERE account_no = ?', [req.params.accountNo]);
-        if (!account) {
-            return res.status(404).json({ error: 'Account not found' });
-        }
+        const account = await Account.findOne({ account_no: req.params.accountNo }).lean();
+        if (!account) return res.status(404).json({ error: 'Account not found' });
 
-        if (req.session.user.role === 'member' && req.session.user.account_id !== account.id) {
+        if (req.session.user.role === 'member' && req.session.user.account_id !== account._id.toString()) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        const members = getAll('SELECT * FROM members WHERE account_id = ? ORDER BY position', [account.id]);
-        res.json({ ...account, members });
+        const members = await Member.find({ account_id: account._id }).sort('position').lean();
+        res.json({ ...account, id: account._id, members: members.map(m => ({...m, id: m._id})) });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 // POST /api/accounts — create new account with members
-router.post('/', requireAdmin, (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
     try {
         const { account_no, members, username, password } = req.body;
 
-        if (!account_no) {
-            return res.status(400).json({ error: 'Account number is required' });
-        }
+        if (!account_no) return res.status(400).json({ error: 'Account number is required' });
+        const existing = await Account.findOne({ account_no });
+        if (existing) return res.status(400).json({ error: 'Account number already exists' });
 
-        const existing = getOne('SELECT id FROM accounts WHERE account_no = ?', [account_no]);
-        if (existing) {
-            return res.status(400).json({ error: 'Account number already exists' });
-        }
+        if (!members || !Array.isArray(members) || members.length === 0) return res.status(400).json({ error: 'At least one member is required' });
+        if (members.length > 6) return res.status(400).json({ error: 'Maximum 6 members allowed per account' });
 
-        if (!members || !Array.isArray(members) || members.length === 0) {
-            return res.status(400).json({ error: 'At least one member is required' });
-        }
-
-        if (members.length > 6) {
-            return res.status(400).json({ error: 'Maximum 6 members allowed per account' });
-        }
-
-        const result = runQuery('INSERT INTO accounts (account_no) VALUES (?)', [account_no]);
-        const accountId = result.lastInsertRowid;
-
-        members.forEach((member, index) => {
+        for (const member of members) {
             if (!member.name || !member.village || !member.phone) {
-                throw new Error(`Member ${index + 1}: name, village, and phone are required`);
+                return res.status(400).json({ error: 'Name, village, and phone are required for all members' });
             }
-            runQuery('INSERT INTO members (account_id, name, village, phone, position) VALUES (?, ?, ?, ?, ?)',
-                [accountId, member.name, member.village, member.phone, index + 1]);
-        });
-
-        // Create login credentials for this account
-        if (username && password) {
-            const existingUser = getOne('SELECT id FROM users WHERE username = ?', [username]);
-            if (existingUser) {
-                throw new Error('Username already exists');
-            }
-            const hash = bcrypt.hashSync(password, 10);
-            runQuery("INSERT INTO users (username, password_hash, role, account_id) VALUES (?, ?, 'member', ?)",
-                [username, hash, accountId]);
         }
 
-        const account = getOne('SELECT * FROM accounts WHERE id = ?', [accountId]);
-        const membersList = getAll('SELECT * FROM members WHERE account_id = ? ORDER BY position', [accountId]);
+        if (username && password) {
+            if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 length' });
+            const existingUser = await User.findOne({ username });
+            if (existingUser) return res.status(400).json({ error: 'Username already exists' });
+        }
 
-        res.status(201).json({ ...account, members: membersList });
+        const newAccount = new Account({ account_no });
+        await newAccount.save();
+
+        const memberDocs = members.map((m, i) => ({
+            account_id: newAccount._id, name: m.name, village: m.village, phone: m.phone, position: i + 1
+        }));
+        const createdMembers = await Member.insertMany(memberDocs);
+
+        // Auto-mark all past months as paid for each new member
+        for (const member of createdMembers) {
+            await createPastFeeRecords(member._id, newAccount._id, member.join_date);
+        }
+
+        if (username && password) {
+            const hash = bcrypt.hashSync(password, 10);
+            await User.create({ username, password_hash: hash, role: 'member', account_id: newAccount._id });
+        }
+
+        const finalMembers = await Member.find({ account_id: newAccount._id }).sort('position').lean();
+        res.status(201).json({ ...newAccount.toObject(), id: newAccount._id, members: finalMembers.map(m => ({...m, id: m._id})) });
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
 });
 
 // POST /api/accounts/:accountNo/members — add member to account
-router.post('/:accountNo/members', requireAdmin, (req, res) => {
+router.post('/:accountNo/members', requireAdmin, async (req, res) => {
     try {
-        const account = getOne('SELECT * FROM accounts WHERE account_no = ?', [req.params.accountNo]);
-        if (!account) {
-            return res.status(404).json({ error: 'Account not found' });
-        }
+        const account = await Account.findOne({ account_no: req.params.accountNo });
+        if (!account) return res.status(404).json({ error: 'Account not found' });
 
-        const existingMembers = getOne('SELECT COUNT(*) as count FROM members WHERE account_id = ?', [account.id]);
-        if (existingMembers.count >= 6) {
-            return res.status(400).json({ error: 'Maximum 6 members allowed per account' });
-        }
+        const existingCount = await Member.countDocuments({ account_id: account._id });
+        if (existingCount >= 6) return res.status(400).json({ error: 'Maximum 6 members allowed per account' });
 
         const { name, village, phone } = req.body;
-        if (!name || !village || !phone) {
-            return res.status(400).json({ error: 'Name, village, and phone are required' });
-        }
+        if (!name || !village || !phone) return res.status(400).json({ error: 'Name, village, and phone are required' });
 
-        const nextPosition = existingMembers.count + 1;
-        runQuery('INSERT INTO members (account_id, name, village, phone, position) VALUES (?, ?, ?, ?, ?)',
-            [account.id, name, village, phone, nextPosition]);
+        const newMember = await Member.create({ account_id: account._id, name, village, phone, position: existingCount + 1 });
 
-        const members = getAll('SELECT * FROM members WHERE account_id = ? ORDER BY position', [account.id]);
-        res.status(201).json({ ...account, members });
+        // Auto-mark all past months as paid for the new member
+        await createPastFeeRecords(newMember._id, account._id, newMember.join_date);
+
+        const members = await Member.find({ account_id: account._id }).sort('position').lean();
+        res.status(201).json({ ...account.toObject(), id: account._id, members: members.map(m => ({...m, id: m._id})) });
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
 });
 
-// PUT /api/accounts/:id — update a member
-router.put('/:id', requireAdmin, (req, res) => {
+// POST /api/accounts/:id/pay-fees
+router.post('/:id/pay-fees', requireAdmin, async (req, res) => {
     try {
-        const member = getOne('SELECT * FROM members WHERE id = ?', [parseInt(req.params.id)]);
-        if (!member) {
-            return res.status(404).json({ error: 'Member not found' });
+        const { amount } = req.body;
+        if (!amount || amount <= 0) return res.status(400).json({ error: 'Valid amount required' });
+
+        const account = await Account.findById(req.params.id);
+        if (!account) return res.status(404).json({ error: 'Account not found' });
+        
+        if (amount > account.pending_fees) return res.status(400).json({ error: 'Cannot overpay pending fees' });
+
+        account.pending_fees -= Number(amount);
+        await account.save();
+
+        const balance = await SocietyBalance.findOne();
+        if (balance) {
+            balance.total_balance += Number(amount);
+            await balance.save();
         }
 
-        const { name, village, phone } = req.body;
-        runQuery('UPDATE members SET name = ?, village = ?, phone = ? WHERE id = ?',
-            [name || member.name, village || member.village, phone || member.phone, parseInt(req.params.id)]);
+        res.json({ message: 'Fees paid successfully', account });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
-        const updated = getOne('SELECT * FROM members WHERE id = ?', [parseInt(req.params.id)]);
-        res.json(updated);
+// POST /api/accounts/:id/use-wallet
+router.post('/:id/use-wallet', requireAdmin, async (req, res) => {
+    try {
+        const account = await Account.findById(req.params.id);
+        if (!account) return res.status(404).json({ error: 'Account not found' });
+        
+        if (account.wallet_balance <= 0) return res.status(400).json({ error: 'No wallet balance available' });
+        if (account.pending_fees <= 0) return res.status(400).json({ error: 'No pending fees to pay' });
+
+        let deductAmt = Math.min(account.wallet_balance, account.pending_fees);
+
+        account.wallet_balance -= deductAmt;
+        account.pending_fees -= deductAmt;
+        await account.save();
+
+        // Since wallet balance already came from society funds previously when distributed, 
+        // paying via wallet essentially puts the money into the Society Balance manually as 'fee received'.
+        const balance = await SocietyBalance.findOne();
+        if (balance) {
+            balance.total_balance += deductAmt;
+            await balance.save();
+        }
+
+        res.json({ message: `Successfully claimed ₹${deductAmt} from wallet to pay fees`, account });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// PUT /api/accounts/:id — update a member
+router.put('/:id', requireAdmin, async (req, res) => {
+    try {
+        const member = await Member.findById(req.params.id);
+        if (!member) return res.status(404).json({ error: 'Member not found' });
+        const { name, village, phone } = req.body;
+
+        member.name = name || member.name;
+        member.village = village || member.village;
+        member.phone = phone || member.phone;
+        await member.save();
+
+        res.json({ ...member.toObject(), id: member._id });
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
 });
 
 // DELETE /api/accounts/member/:id — delete a member
-router.delete('/member/:id', requireAdmin, (req, res) => {
+router.delete('/member/:id', requireAdmin, async (req, res) => {
     try {
-        const member = getOne('SELECT * FROM members WHERE id = ?', [parseInt(req.params.id)]);
-        if (!member) {
-            return res.status(404).json({ error: 'Member not found' });
+        const member = await Member.findById(req.params.id);
+        if (!member) return res.status(404).json({ error: 'Member not found' });
+
+        const accountId = member.account_id;
+        await Member.findByIdAndDelete(req.params.id);
+
+        const remaining = await Member.find({ account_id: accountId }).sort('position');
+        for (let i = 0; i < remaining.length; i++) {
+            remaining[i].position = i + 1;
+            await remaining[i].save();
         }
-
-        runQuery('DELETE FROM members WHERE id = ?', [parseInt(req.params.id)]);
-
-        // Re-order positions
-        const remaining = getAll('SELECT * FROM members WHERE account_id = ? ORDER BY position', [member.account_id]);
-        remaining.forEach((m, index) => {
-            runQuery('UPDATE members SET position = ? WHERE id = ?', [index + 1, m.id]);
-        });
 
         res.json({ message: 'Member deleted successfully' });
     } catch (err) {
@@ -168,21 +249,17 @@ router.delete('/member/:id', requireAdmin, (req, res) => {
 });
 
 // DELETE /api/accounts/:accountNo — delete entire account
-router.delete('/:accountNo', requireAdmin, (req, res) => {
+router.delete('/:accountNo', requireAdmin, async (req, res) => {
     try {
-        const account = getOne('SELECT * FROM accounts WHERE account_no = ?', [req.params.accountNo]);
-        if (!account) {
-            return res.status(404).json({ error: 'Account not found' });
-        }
+        const account = await Account.findOne({ account_no: req.params.accountNo });
+        if (!account) return res.status(404).json({ error: 'Account not found' });
 
-        const activeLoans = getOne("SELECT COUNT(*) as count FROM loans WHERE account_id = ? AND status = 'active'", [account.id]);
-        if (activeLoans.count > 0) {
-            return res.status(400).json({ error: 'Cannot delete account with active loans. Clear loans first.' });
-        }
+        const activeLoans = await Loan.countDocuments({ account_id: account._id, status: 'active' });
+        if (activeLoans > 0) return res.status(400).json({ error: 'Cannot delete account with active loans. Clear loans first.' });
 
-        runQuery('DELETE FROM users WHERE account_id = ?', [account.id]);
-        runQuery('DELETE FROM members WHERE account_id = ?', [account.id]);
-        runQuery('DELETE FROM accounts WHERE id = ?', [account.id]);
+        await User.deleteMany({ account_id: account._id });
+        await Member.deleteMany({ account_id: account._id });
+        await Account.findByIdAndDelete(account._id);
 
         res.json({ message: 'Account deleted successfully' });
     } catch (err) {
