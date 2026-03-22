@@ -213,9 +213,9 @@ export default function Members() {
                               </div>
                             </div>
                           ) : (
-                            <div style={{ minWidth: 0 }}>
-                              <h4 style={{ margin: 0, wordBreak: 'break-word', lineHeight: '1.2' }}>{member.name} {member.position === 1 && '(Primary)'}</h4>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem' }}>{member.village} • {member.phone}</span>
+                            <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <h4 style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name} {member.position === 1 && '(Primary)'}</h4>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.village} • {member.phone}</span>
                             </div>
                           )}
                         </div>
