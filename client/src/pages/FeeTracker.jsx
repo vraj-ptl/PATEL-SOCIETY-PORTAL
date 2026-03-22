@@ -11,6 +11,9 @@ export default function FeeTracker() {
   const [filteredMembers, setFilteredMembers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [activePane, setActivePane] = useState('left'); // 'left' or 'right'
+
   const [selectedMember, setSelectedMember] = useState(null);
   const [feeHistory, setFeeHistory] = useState(null);
   
@@ -19,6 +22,9 @@ export default function FeeTracker() {
 
   useEffect(() => {
     fetchInitialData();
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const fetchInitialData = async () => {
@@ -63,6 +69,7 @@ export default function FeeTracker() {
   const selectMember = async (member) => {
     setSelectedMember(member);
     setFeeHistory(null);
+    if (isMobile) setActivePane('right'); // Auto-expand right side on mobile
     try {
       const res = await axios.get(`/api/fees/member/${member.id}`);
       setFeeHistory(res.data.history);
@@ -143,9 +150,22 @@ export default function FeeTracker() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} style={{ display: 'flex', gap: '2rem', height: 'calc(100vh - 100px)' }}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} style={{ display: 'flex', gap: isMobile ? '1rem' : '2rem', height: isMobile ? 'calc(100vh - 120px)' : 'calc(100vh - 100px)', flexDirection: isMobile ? 'column' : 'row' }}>
       {/* Left Sidebar: Member Search */}
-      <div className="glass-panel" style={{ width: '350px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div 
+        className="glass-panel" 
+        onClick={() => isMobile && setActivePane('left')}
+        style={{ 
+          width: isMobile ? '100%' : '350px', 
+          flex: isMobile ? (activePane === 'left' ? 4 : 1) : 'none',
+          display: 'flex', 
+          flexDirection: 'column', 
+          overflow: 'hidden',
+          transition: 'flex 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          cursor: (isMobile && activePane === 'right') ? 'pointer' : 'default',
+          opacity: (isMobile && activePane === 'right') ? 0.7 : 1
+        }}
+      >
         <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
           <h2 style={{ margin: '0 0 1rem 0' }}>{isAdmin ? 'Search Members' : 'Your Family'}</h2>
           {isAdmin && (
@@ -186,7 +206,18 @@ export default function FeeTracker() {
       </div>
 
       {/* Right Pane: Timeline */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div 
+        onClick={() => isMobile && setActivePane('right')}
+        style={{ 
+          flex: isMobile ? (activePane === 'right' ? 5 : 1) : 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          transition: 'flex 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          cursor: (isMobile && activePane === 'left') ? 'pointer' : 'default',
+          opacity: (isMobile && activePane === 'left') ? 0.7 : 1,
+          overflow: 'hidden'
+        }}
+      >
         {!selectedMember ? (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-panel" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
             <div style={{ textAlign: 'center' }}>
