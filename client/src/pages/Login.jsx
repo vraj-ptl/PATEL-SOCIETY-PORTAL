@@ -24,7 +24,8 @@ export default function Login() {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      const errorMsg = err.response?.data?.error || err.response?.data || err.message || 'Login failed';
+      setError(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
     } finally {
       setLoading(false);
     }

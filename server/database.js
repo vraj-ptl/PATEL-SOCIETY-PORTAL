@@ -22,7 +22,8 @@ async function initializeDatabase() {
         }
     } catch (error) {
         console.error('Database connection error:', error);
-        process.exit(1);
+        // Do not process.exit(1) in a serverless environment as it kills the execution instance
+        throw error;
     }
 }
 

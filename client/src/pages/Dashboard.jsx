@@ -30,10 +30,17 @@ export default function Dashboard() {
   const fetchStats = async () => {
     try {
       const res = await axios.get('/api/dashboard');
-      setStats(res.data);
+      if (res.data) {
+        setStats(res.data);
+      } else {
+        setError('No data received from server');
+      }
     } catch (err) {
-      if (err.response?.status === 401) window.location.href = '/login';
-      setError('Failed to load dashboard metrics');
+      if (err.response?.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+      setError(err.response?.data?.error || 'Failed to load dashboard metrics');
     } finally {
       setLoading(false);
     }
@@ -84,17 +91,32 @@ export default function Dashboard() {
     } catch (err) { alert(err.response?.data?.error || 'Error updating interest'); }
   };
 
-  if (loading) return <div>Loading dashboard...</div>;
-  if (error) return <div style={{ color: 'var(--danger)' }}>{error}</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-muted)' }}>
+      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+        Loading dashboard...
+      </motion.div>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h2 style={{ color: 'var(--danger)' }}>Error</h2>
+      <p style={{ color: 'var(--text-muted)' }}>{error}</p>
+      <motion.button whileHover={{ scale: 1.05 }} className="glass-button" onClick={fetchStats} style={{ marginTop: '1.5rem' }}>Retry</motion.button>
+    </div>
+  );
+
+  if (!stats) return null;
 
   const cards = [
-    { title: 'Total Society Balance', value: `₹${stats.total_balance?.toLocaleString()}`, icon: <IndianRupee size={24} />, color: 'var(--success)' },
-    { title: 'Pending Loans Issued', value: `₹${stats.total_pending_loans?.toLocaleString()}`, icon: <CreditCard size={24} />, color: 'var(--warning)' },
-    { title: 'Active Loans', value: stats.active_loans, icon: <CreditCard size={24} />, color: 'var(--accent)' },
-    { title: 'Completed Loans', value: stats.completed_loans, icon: <CheckCircle size={24} />, color: 'var(--success)' },
-    { title: 'Total Lifetime Interest', value: `₹${stats.total_lifetime_interest_earned?.toLocaleString()}`, icon: <TrendingUp size={24} />, color: '#f59e0b' },
-    { title: 'Total Accounts', value: stats.total_accounts, icon: <Users size={24} />, color: '#8b5cf6' },
-    { title: 'Total Members', value: stats.total_members, icon: <Users size={24} />, color: '#ec4899' },
+    { title: 'Total Society Balance', value: `₹${(stats.total_balance || 0).toLocaleString()}`, icon: <IndianRupee size={24} />, color: 'var(--success)' },
+    { title: 'Pending Loans Issued', value: `₹${(stats.total_pending_loans || 0).toLocaleString()}`, icon: <CreditCard size={24} />, color: 'var(--warning)' },
+    { title: 'Active Loans', value: stats.active_loans || 0, icon: <CreditCard size={24} />, color: 'var(--accent)' },
+    { title: 'Completed Loans', value: stats.completed_loans || 0, icon: <CheckCircle size={24} />, color: 'var(--success)' },
+    { title: 'Total Lifetime Interest', value: `₹${(stats.total_lifetime_interest_earned || 0).toLocaleString()}`, icon: <TrendingUp size={24} />, color: '#f59e0b' },
+    { title: 'Total Accounts', value: stats.total_accounts || 0, icon: <Users size={24} />, color: '#8b5cf6' },
+    { title: 'Total Members', value: stats.total_members || 0, icon: <Users size={24} />, color: '#ec4899' },
   ];
 
   const containerVariants = {
