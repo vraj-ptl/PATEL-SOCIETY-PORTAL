@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Account = require('../models/Account');
+const Member = require('../models/Member');
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
@@ -38,12 +39,53 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// POST /api/auth/forgot-password/request-otp
+router.post('/forgot-password/request-otp', async (req, res) => {
+    try {
+        const { username, accountNo } = req.body;
+        if (!username || !accountNo) {
+            return res.status(400).json({ error: 'Username and Account Number are required' });
+        }
+
+        const account = await Account.findOne({ account_no: accountNo });
+        if (!account) return res.status(404).json({ error: 'Account not found' });
+
+        const user = await User.findOne({ username, account_id: account._id });
+        if (!user) return res.status(404).json({ error: 'Invalid details provided.' });
+
+        // Find primary member
+        const member = await Member.findOne({ account_id: account._id }).sort('position');
+        if (!member || !member.phone) {
+            return res.status(400).json({ error: 'No phone number linked to this account.' });
+        }
+
+        const phone = member.phone;
+        // Generate a 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        user.reset_otp = otp;
+        user.reset_otp_expires = new Date(Date.now() + 90 * 1000); // 1.5 minutes
+        await user.save();
+
+        // Simulate sending OTP
+        console.log(`\n\n=== OTP GENERATED ===\nSent to: ${phone}\nOTP: ${otp}\n=====================\n\n`);
+
+        const maskedPhone = phone.length >= 10 
+            ? phone.substring(0, 2) + '*'.repeat(phone.length - 4) + phone.substring(phone.length - 2)
+            : '*******' + phone.slice(-2);
+
+        res.json({ message: 'OTP sent successfully', maskedPhone });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/auth/reset-password
 router.post('/reset-password', async (req, res) => {
     try {
-        const { username, accountNo, newPassword } = req.body;
-        if (!username || !accountNo || !newPassword) {
-            return res.status(400).json({ error: 'All fields are required' });
+        const { username, accountNo, otp, newPassword } = req.body;
+        if (!username || !accountNo || !otp || !newPassword) {
+            return res.status(400).json({ error: 'All fields including OTP are required' });
         }
 
         const account = await Account.findOne({ account_no: accountNo });
@@ -56,8 +98,14 @@ router.post('/reset-password', async (req, res) => {
             return res.status(404).json({ error: 'Invalid details provided.' });
         }
 
+        if (user.reset_otp !== otp || user.reset_otp_expires < new Date()) {
+            return res.status(400).json({ error: 'Invalid or expired OTP.' });
+        }
+
         const hash = bcrypt.hashSync(newPassword, 10);
         user.password_hash = hash;
+        user.reset_otp = undefined;
+        user.reset_otp_expires = undefined;
         await user.save();
 
         res.json({ message: 'Password reset successfully' });

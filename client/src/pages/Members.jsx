@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
-import { Search, Plus, Trash2, ChevronDown, ChevronRight, X, User } from 'lucide-react';
+import { Search, Plus, Trash2, ChevronDown, ChevronRight, X, User, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
 
@@ -18,6 +18,7 @@ export default function Members() {
   const [newAccNo, setNewAccNo] = useState('');
   const [newUser, setNewUser] = useState('');
   const [newPass, setNewPass] = useState('');
+  const [showNewPass, setShowNewPass] = useState(false);
   const [membersList, setMembersList] = useState([{ name: '', village: '', phone: '' }]);
 
   useEffect(() => {
@@ -241,9 +242,16 @@ export default function Members() {
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Login Username</label>
                   <input type="text" onFocus={playHoverSound} className="glass-input" value={newUser} onChange={e => setNewUser(e.target.value)} />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, position: 'relative' }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Login Password (min 6)</label>
-                  <input type="password" onFocus={playHoverSound} className="glass-input" value={newPass} onChange={e => setNewPass(e.target.value)} />
+                  <input type={showNewPass ? "text" : "password"} onFocus={playHoverSound} className="glass-input" value={newPass} onChange={e => setNewPass(e.target.value)} style={{ paddingRight: '2.5rem' }} />
+                  <button 
+                    type="button"
+                    onClick={() => { playClickSound(); setShowNewPass(!showNewPass); }}
+                    style={{ position: 'absolute', right: '10px', top: '34px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.2rem' }}
+                  >
+                    {showNewPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </div>
 

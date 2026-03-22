@@ -297,3 +297,90 @@ h1, h2, h3, h4, h5, h6 {
   background: rgba(255,255,255,0.02);
   color: #fff;
 }
+
+/* Light Mode Overrides */
+body.light-mode {
+  --bg-dark: #f0fdf4; /* Light clean mint background */
+  --bg-panel: rgba(255, 255, 255, 0.65);
+  --bg-panel-hover: rgba(255, 255, 255, 0.9);
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --border-glow: rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 40px -10px rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode .glass-input {
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text-main);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+body.light-mode .glass-input:focus {
+  background: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+body.light-mode .glass-input::placeholder {
+  color: #94a3b8;
+}
+
+body.light-mode .text-gradient {
+  background: linear-gradient(135deg, #4c1d95 0%, #2563eb 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+}
+
+body.light-mode .glass-button {
+  color: #fff; /* Button text stays white because of gradient */
+}
+
+body.light-mode .glass-table th {
+  color: var(--text-main);
+  border-bottom: 2px solid rgba(0,0,0,0.1);
+}
+
+body.light-mode .glass-table td {
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+body.light-mode .glass-table tr:hover td {
+  background: rgba(0,0,0,0.03);
+  color: var(--text-main);
+}
+
+body.light-mode .sidebar {
+  background: rgba(255, 255, 255, 0.4);
+  border-right: 1px solid rgba(0,0,0,0.05);
+}
+
+body.light-mode .nav-link {
+  color: var(--text-muted);
+}
+
+body.light-mode .nav-link:hover {
+  color: var(--text-main);
+}
+
+body.light-mode .nav-link.active {
+  color: #ffffff;
+}
+
+body.light-mode .badge {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.1);
+  color: var(--text-main);
+  box-shadow: none;
+}
+
+body.light-mode .badge.active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: none;
+}

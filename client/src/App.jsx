@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Canvas } from '@react-three/fiber';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Sun, Moon } from 'lucide-react';
 import ThreeBackground from './components/ThreeBackground';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -12,13 +13,50 @@ import FeeTracker from './pages/FeeTracker';
 import About from './pages/About';
 import ForgotPassword from './pages/ForgotPassword';
 import Sidebar from './components/Sidebar';
+import { playClickSound, playHoverSound } from './utils/sounds';
 
 function AppContent() {
   const location = useLocation();
   const isAuthPage = ['/', '/login', '/forgot-password'].includes(location.pathname);
 
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light-mode');
+    } else {
+      document.body.classList.remove('light-mode');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    playClickSound();
+    setTheme(t => (t === 'dark' ? 'light' : 'dark'));
+  };
+
   return (
     <>
+      <button 
+        onClick={toggleTheme}
+        onMouseEnter={playHoverSound}
+        className="glass-button"
+        style={{
+          position: 'fixed',
+          top: '1.5rem',
+          right: '1.5rem',
+          zIndex: 1000,
+          padding: '0.6rem',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+        }}
+        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+      >
+        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+      </button>
       {/* 3D Global Canvas Background */}
       <div className="canvas-container">
         <Canvas camera={{ position: [0, 0, 10], fov: 45 }}>

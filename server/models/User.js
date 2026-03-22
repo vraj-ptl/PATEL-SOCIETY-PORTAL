@@ -5,6 +5,8 @@ const userSchema = new mongoose.Schema({
     password_hash: { type: String, required: true },
     role: { type: String, required: true, enum: ['admin', 'member'] },
     account_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Account' },
+    reset_otp: { type: String },
+    reset_otp_expires: { type: Date },
     created_at: { type: Date, default: Date.now }
 });
 

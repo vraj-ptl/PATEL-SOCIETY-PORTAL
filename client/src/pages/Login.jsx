@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from '../utils/axios';
-import { Hexagon } from 'lucide-react';
+import { Hexagon, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
 
@@ -10,7 +10,17 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const saved = localStorage.getItem('rememberedUsername');
+    if (saved) {
+      setUsername(saved);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -20,6 +30,8 @@ export default function Login() {
     try {
       const res = await axios.post('/api/auth/login', { username, password });
       if (res.data.user) {
+        if (rememberMe) localStorage.setItem('rememberedUsername', username);
+        else localStorage.removeItem('rememberedUsername');
         playSuccessSound();
         navigate('/dashboard');
       }
@@ -93,17 +105,36 @@ export default function Login() {
           />
         </div>
         
-        <div>
+        <div style={{ position: 'relative' }}>
           <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.5px' }}>PASSWORD</label>
           <input 
-            type="password" 
+            type={showPassword ? "text" : "password"} 
             className="glass-input" 
             placeholder="Enter password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onFocus={playHoverSound}
+            style={{ paddingRight: '2.5rem' }}
             required
           />
+          <button 
+            type="button"
+            onClick={() => { playClickSound(); setShowPassword(!showPassword); }}
+            style={{ position: 'absolute', right: '10px', top: '34px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.2rem' }}
+          >
+            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '-0.5rem' }}>
+          <input 
+            type="checkbox" 
+            id="remember" 
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
+          />
+          <label htmlFor="remember" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer' }}>Remember me</label>
         </div>
 
         <motion.button 
