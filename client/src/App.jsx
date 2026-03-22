@@ -15,7 +15,7 @@ import Sidebar from './components/Sidebar';
 
 function AppContent() {
   const location = useLocation();
-  const isAuthPage = ['/login', '/forgot-password'].includes(location.pathname);
+  const isAuthPage = ['/', '/login', '/forgot-password'].includes(location.pathname);
 
   return (
     <>
