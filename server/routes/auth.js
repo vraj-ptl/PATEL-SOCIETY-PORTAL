@@ -75,12 +75,18 @@ router.post('/forgot-password/request-otp', async (req, res) => {
         if (accountSid && authToken && twilioPhone) {
             try {
                 const client = twilio(accountSid, authToken);
-                let formattedPhone = phone;
-                // Format basic Indian 10-digit number to E.164
-                if (/^\d{10}$/.test(formattedPhone)) {
-                    formattedPhone = '+91' + formattedPhone;
-                } else if (!formattedPhone.startsWith('+')) {
-                    formattedPhone = '+' + formattedPhone;
+                
+                // Clean the phone number (remove spaces, dashes, etc.)
+                let digitsOnly = phone.replace(/\D/g, '');
+                let formattedPhone = '';
+                
+                // Format Indian number to E.164 standard (+91)
+                if (digitsOnly.length === 10) {
+                    formattedPhone = '+91' + digitsOnly;
+                } else if (digitsOnly.length > 10 && digitsOnly.startsWith('91')) {
+                    formattedPhone = '+' + digitsOnly;
+                } else {
+                    formattedPhone = '+' + digitsOnly; // Fallback
                 }
 
                 await client.messages.create({
