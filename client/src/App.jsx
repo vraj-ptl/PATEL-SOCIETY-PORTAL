@@ -40,11 +40,10 @@ function AppContent() {
       <button 
         onClick={toggleTheme}
         onMouseEnter={playHoverSound}
-        className="glass-button"
+        className="glass-button theme-toggle-btn"
         style={{
           position: 'fixed',
           top: '1.5rem',
-          right: '1.5rem',
           zIndex: 1000,
           padding: '0.6rem',
           borderRadius: '50%',

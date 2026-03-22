@@ -131,6 +131,10 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 20px var(--danger-glow);
 }
 
+.theme-toggle-btn {
+  right: 1.5rem;
+}
+
 /* App Layout */
 .app-container {
   position: relative;
@@ -409,6 +413,11 @@ body.light-mode .badge.active {
     position: sticky;
     top: 0;
     z-index: 500;
+  }
+  
+  .theme-toggle-btn {
+    right: 5rem !important; /* Prevents collision with Logout button */
+    top: 1.15rem !important;
   }
   
   /* Bottom Navigation Transformation */
