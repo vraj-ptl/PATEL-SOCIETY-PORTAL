@@ -3,7 +3,8 @@ const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const cors = require('cors');
-const MongoStore = require('connect-mongo');
+const connectMongo = require('connect-mongo');
+const MongoStore = connectMongo.MongoStore || connectMongo.default || connectMongo;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,16 +20,16 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session store: connect-mongo will create its OWN connection using the URI string.
-// This is the correct and reliable way — it does NOT depend on mongoose being connected first.
+// Session store: connect-mongo creates its OWN connection using the URI string.
+const sessionStore = typeof MongoStore.create === 'function'
+    ? MongoStore.create({ mongoUrl: MONGO_URI, collectionName: 'sessions' })
+    : new MongoStore({ mongoUrl: MONGO_URI, collectionName: 'sessions' });
+
 app.use(session({
     secret: process.env.SESSION_SECRET || 'patel-society-secret-key-2026',
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({
-        mongoUrl: MONGO_URI,
-        collectionName: 'sessions'
-    }),
+    store: sessionStore,
     cookie: {
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         secure: process.env.NODE_ENV === 'production',
