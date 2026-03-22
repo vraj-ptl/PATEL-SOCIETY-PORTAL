@@ -11,6 +11,8 @@ export default function Loans() {
   const [selectedLoanId, setSelectedLoanId] = useState(null);
   const [installments, setInstallments] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showMobileInstallments, setShowMobileInstallments] = useState(false);
 
   // New Loan State
   const [newAccNo, setNewAccNo] = useState('');
@@ -22,6 +24,9 @@ export default function Loans() {
   useEffect(() => {
     fetchLoans();
     checkRole();
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const checkRole = async () => {
@@ -44,10 +49,15 @@ export default function Loans() {
 
   const viewInstallments = async (id) => {
     if (selectedLoanId === id) {
+      if (isMobile) {
+        setShowMobileInstallments(true);
+        return;
+      }
       setSelectedLoanId(null);
       return;
     }
     try {
+      if (isMobile) setShowMobileInstallments(true);
       const res = await axios.get(`/api/loans/${id}`);
       setInstallments(res.data.installments);
       setSelectedLoanId(id);
@@ -121,7 +131,7 @@ export default function Loans() {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selectedLoanId ? '1fr 1fr' : '1fr', gap: '2rem', transition: 'all 0.3s' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: (selectedLoanId && !isMobile) ? '1fr 1fr' : '1fr', gap: '2rem', transition: 'all 0.3s' }}>
         <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {loans.map(loan => (
             <motion.div variants={itemVariants} key={loan.id} className={`glass-panel ${selectedLoanId === loan.id ? 'active' : ''}`} style={{ padding: '1.5rem', cursor: 'pointer', borderColor: selectedLoanId === loan.id ? 'var(--accent)' : 'var(--border-color)' }} onMouseEnter={playHoverSound} onClick={() => { playClickSound(); viewInstallments(loan.id); }}>
@@ -145,10 +155,51 @@ export default function Loans() {
           {loans.length === 0 && <p className="text-muted">No active loans found.</p>}
         </motion.div>
 
-        {selectedLoanId && (
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="glass-panel" style={{ padding: '1.5rem', alignSelf: 'start', position: 'sticky', top: '2rem' }}>
-            <h3 style={{ marginBottom: '1.5rem' }}>Installments</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '600px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+        {selectedLoanId && (!isMobile || showMobileInstallments) && (
+          <>
+            {isMobile && (
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 999 }} 
+                onClick={() => setShowMobileInstallments(false)}
+              />
+            )}
+            <motion.div 
+              initial={isMobile ? { y: '100%' } : { opacity: 0, x: 20 }} 
+              animate={isMobile ? { y: 0 } : { opacity: 1, x: 0 }} 
+              transition={isMobile ? { type: 'spring', damping: 25, stiffness: 300 } : {}}
+              className={!isMobile ? "glass-panel" : ""} 
+              style={{ 
+                ...(isMobile ? {
+                  position: 'fixed',
+                  bottom: '70px',
+                  left: 0,
+                  width: '100vw',
+                  height: '85vh',
+                  background: 'var(--bg-dark)',
+                  borderTopLeftRadius: '24px',
+                  borderTopRightRadius: '24px',
+                  borderTop: '1px solid rgba(255,255,255,0.1)',
+                  boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
+                  zIndex: 1000,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: '1.5rem',
+                } : {
+                  padding: '1.5rem', alignSelf: 'start', position: 'sticky', top: '2rem' 
+                })
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ margin: 0 }}>Installments</h3>
+                {isMobile && (
+                  <button onClick={() => setShowMobileInstallments(false)} className="glass-button" style={{ background: 'transparent', padding: '0.5rem' }}>
+                    <X size={24} color="var(--text-muted)" />
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: isMobile ? 1 : 'none', maxHeight: isMobile ? 'none' : '600px', overflowY: 'auto', paddingRight: '0.5rem' }}>
               {installments.map(inst => (
                 <div key={inst.id} style={{ padding: '1rem', borderRadius: '8px', background: inst.is_paid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${inst.is_paid ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-color)'}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -171,6 +222,7 @@ export default function Loans() {
               ))}
             </div>
           </motion.div>
+          </>
         )}
       </div>
 

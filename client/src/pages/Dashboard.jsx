@@ -110,7 +110,8 @@ export default function Dashboard() {
   if (!stats) return null;
 
   const cards = [
-    { title: 'Total Society Balance', value: `₹${(stats.total_balance || 0).toLocaleString()}`, icon: <IndianRupee size={24} />, color: 'var(--success)' },
+    { title: 'Total Society Balance', value: `₹${((stats.total_balance || 0) + (stats.total_pending_loans || 0)).toLocaleString()}`, icon: <IndianRupee size={24} />, color: '#8b5cf6' },
+    { title: 'Available Balance', value: `₹${(stats.total_balance || 0).toLocaleString()}`, icon: <IndianRupee size={24} />, color: 'var(--success)' },
     { title: 'Pending Loans Issued', value: `₹${(stats.total_pending_loans || 0).toLocaleString()}`, icon: <CreditCard size={24} />, color: 'var(--warning)' },
     { title: 'Active Loans', value: stats.active_loans || 0, icon: <CreditCard size={24} />, color: 'var(--accent)' },
     { title: 'Completed Loans', value: stats.completed_loans || 0, icon: <CheckCircle size={24} />, color: 'var(--success)' },
