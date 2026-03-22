@@ -70,77 +70,99 @@ export default function Reports() {
   }, [activeTab]);
 
   const generatePDF = () => {
-    playClickSound();
-    const doc = new jsPDF();
-    let title = 'Detailed Report';
-    let headers = [];
-    let tableData = [];
+    try {
+      console.log('generatePDF called, activeTab:', activeTab, 'data length:', data.length);
+      const doc = new jsPDF();
+      let title = 'Detailed Report';
+      let headers = [];
+      let tableData = [];
 
-    if (activeTab === 'loans') {
-        title = `Loans Issued Report`;
-        if (loanStart && loanEnd) title += ` (${loanStart} to ${loanEnd})`;
-        headers = [['#', 'Account No', 'Member Name', 'Principal', 'Start Date', 'Total Amount', 'Status']];
-        tableData = data.map((loan, i) => [
-            i + 1,
-            loan.account_no, 
-            loan.member_name, 
-            `Rs. ${loan.principal}`,
-            `${monthsList[loan.start_month - 1]} ${loan.start_year}`,
-            `Rs. ${loan.total_amount}`,
-            loan.status.toUpperCase()
-        ]);
-    } else if (activeTab === 'fees') {
-        title = `Pending Monthly Fees Report`;
-        title += ` (${feeStartMonth}/${feeStartYear} - ${feeEndMonth}/${feeEndYear})`;
-        headers = [['#', 'Account No', 'Member Name', 'Pending Months', 'Total Pending', 'Months']];
-        tableData = data.map((f, i) => [
-            i + 1,
-            f.account_no,
-            f.member_name,
-            f.pending_months_count.toString(),
-            `Rs. ${f.total_pending_amount}`,
-            f.details.join(', ')
-        ]);
-    } else if (activeTab === 'installments') {
-        title = `Pending Loan Installments Report`;
-        if (instMonthLabel) title += ` (${instMonthLabel})`;
-        headers = [['#', 'Account No', 'Member Name', 'Principal', 'Installment', 'Month', 'Amount Due']];
-        
-        let rowCount = 0;
-        data.forEach(item => {
-            item.pending_installments.forEach(inst => {
-                rowCount++;
-                tableData.push([
-                    rowCount,
-                    item.account_no,
-                    item.member_name,
-                    `Rs. ${item.loan_principal}`,
-                    `#${inst.installment_no}`,
-                    inst.month_label,
-                    `Rs. ${inst.amount_due}`
-                ]);
-            });
-        });
+      if (activeTab === 'loans') {
+          title = `Loans Issued Report`;
+          if (loanStart && loanEnd) title += ` (${loanStart} to ${loanEnd})`;
+          headers = [['#', 'Account No', 'Member Name', 'Principal', 'Start Date', 'Total Amount', 'Status']];
+          tableData = data.map((loan, i) => [
+              i + 1,
+              loan.account_no || '', 
+              loan.member_name || '', 
+              `Rs. ${loan.principal}`,
+              `${monthsList[(loan.start_month || 1) - 1]} ${loan.start_year}`,
+              `Rs. ${loan.total_amount}`,
+              (loan.status || '').toUpperCase()
+          ]);
+      } else if (activeTab === 'fees') {
+          title = `Pending Monthly Fees Report`;
+          title += ` (${feeStartMonth}/${feeStartYear} - ${feeEndMonth}/${feeEndYear})`;
+          headers = [['#', 'Account No', 'Member Name', 'Pending Months', 'Total Pending', 'Months']];
+          tableData = data.map((f, i) => [
+              i + 1,
+              f.account_no || '',
+              f.member_name || '',
+              (f.pending_months_count || 0).toString(),
+              `Rs. ${f.total_pending_amount || 0}`,
+              (f.details || []).join(', ')
+          ]);
+      } else if (activeTab === 'installments') {
+          title = `Pending Loan Installments Report`;
+          if (instMonthLabel) title += ` (${instMonthLabel})`;
+          headers = [['#', 'Account No', 'Member Name', 'Principal', 'Installment', 'Month', 'Amount Due']];
+          
+          let rowCount = 0;
+          data.forEach(item => {
+              (item.pending_installments || []).forEach(inst => {
+                  rowCount++;
+                  tableData.push([
+                      rowCount,
+                      item.account_no || '',
+                      item.member_name || '',
+                      `Rs. ${item.loan_principal}`,
+                      `#${inst.installment_no}`,
+                      inst.month_label || '',
+                      `Rs. ${inst.amount_due}`
+                  ]);
+              });
+          });
+      }
+
+      // Title
+      doc.setFontSize(16);
+      doc.text(title, 14, 20);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 28);
+      
+      autoTable(doc, {
+          startY: 35,
+          head: headers,
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [139, 92, 246] },
+          styles: { fontSize: 9 },
+          alternateRowStyles: { fillColor: [245, 245, 255] }
+      });
+
+      const fileName = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+      console.log('Saving PDF as:', fileName);
+      
+      // Create a blob from the PDF and force the browser to download it using an anchor tag.
+      // This is more reliable than doc.save() which can silently fail in some browser configurations.
+      const blob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL after a short delay to ensure the download starts
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      
+      console.log('PDF save forced via Blob URL successfully');
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      alert('Error generating PDF: ' + err.message);
     }
-
-    // Title
-    doc.setFontSize(16);
-    doc.text(title, 14, 20);
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 28);
-    
-    autoTable(doc, {
-        startY: 35,
-        head: headers,
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [139, 92, 246] },
-        styles: { fontSize: 9 },
-        alternateRowStyles: { fillColor: [245, 245, 255] }
-    });
-
-    doc.save(`${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
   };
 
   const renderFilters = () => {
@@ -194,26 +216,25 @@ export default function Reports() {
   const renderPDFButton = () => {
     if (data.length === 0) return null;
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2rem' }}>
-        <motion.button 
-            whileHover={{ scale: 1.05 }} 
-            whileTap={{ scale: 0.95 }} 
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2rem', marginBottom: '1rem' }}>
+        <button 
             className="glass-button" 
-            onClick={generatePDF} 
-            onMouseEnter={playHoverSound}
+            onClick={() => { console.log('PDF button clicked!'); generatePDF(); }}
             style={{ 
-                background: 'rgba(139, 92, 246, 0.2)', 
-                border: '1px solid #8b5cf6', 
+                background: 'rgba(139, 92, 246, 0.3)', 
+                border: '2px solid #8b5cf6', 
                 color: '#fff', 
                 display: 'flex', 
                 alignItems: 'center', 
                 gap: '0.5rem',
                 padding: '0.75rem 2rem',
-                fontSize: '1rem'
+                fontSize: '1rem',
+                cursor: 'pointer',
+                borderRadius: '12px'
             }}
         >
             <Download size={20} /> Export as PDF
-        </motion.button>
+        </button>
       </div>
     );
   };
