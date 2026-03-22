@@ -3,29 +3,31 @@ const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const cors = require('cors');
+const MongoStore = require('connect-mongo');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MongoStore = require('connect-mongo');
 
-const mongoose = require('mongoose');
+// The MongoDB URI (used for both DB and session store)
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/society';
 
-// Middleware
-app.use(cors({ 
-    origin: process.env.NODE_ENV === 'production' ? true : 'http://localhost:5173', 
-    credentials: true 
-})); 
+// --- Middleware ---
+app.use(cors({
+    origin: process.env.NODE_ENV === 'production' ? true : 'http://localhost:5173',
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session Setup (sharing the Mongoose connection)
+// Session store: connect-mongo will create its OWN connection using the URI string.
+// This is the correct and reliable way — it does NOT depend on mongoose being connected first.
 app.use(session({
     secret: process.env.SESSION_SECRET || 'patel-society-secret-key-2026',
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-        client: mongoose.connection.getClient ? mongoose.connection.getClient() : mongoose.connection.client,
-        dbName: 'society'
+        mongoUrl: MONGO_URI,
+        collectionName: 'sessions'
     }),
     cookie: {
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
@@ -34,22 +36,19 @@ app.use(session({
     }
 }));
 
-// Connection Status Endpoint for Debugging
-app.get('/api/status', (req, res) => {
-    const isConnected = mongoose.connection.readyState === 1;
+// --- Status Endpoint (for debugging connectivity) ---
+app.get('/api/status', async (req, res) => {
+    const mongoose = require('mongoose');
     res.json({
-        status: isConnected ? 'Connected' : 'Disconnected',
-        database: isConnected ? 'MongoDB' : 'None',
+        status: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        readyState: mongoose.connection.readyState,
+        mongoUri: MONGO_URI ? 'Set' : 'MISSING',
         environment: process.env.NODE_ENV || 'development',
-        vercel: !!process.env.VERCEL,
-        session_store: 'MongoStore'
+        vercel: !!process.env.VERCEL
     });
 });
 
-// Serve static files from React build (when built)
-// app.use(express.static(path.join(__dirname, '..', 'client', 'dist')));
-
-// API Routes
+// --- API Routes ---
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
 const accountRoutes = require('./routes/members');
@@ -62,27 +61,21 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/fees', feeRoutes);
 
-// Fallback to React index
-/*
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'client', 'dist', 'index.html'));
-});
-*/
-
-// Start local server if not in Vercel
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+// --- Local Development Server ---
+if (!process.env.VERCEL) {
     const { initializeDatabase } = require('./database');
     initializeDatabase().then(() => {
         app.listen(PORT, () => {
-            console.log(`\n  🏛️  Patel Society Portal Server (MongoDB Version)`);
+            console.log(`\n  🏛️  Patel Society Portal Server`);
             console.log(`  ═══════════════════════════════`);
             console.log(`  🌐 Running at: http://localhost:${PORT}`);
             console.log(`  👤 Admin Login: admin / admin123\n`);
         });
     }).catch(err => {
-        console.error('Failed to start local server:', err);
+        console.error('Failed to start server:', err);
+        process.exit(1);
     });
 }
 
-// Export the Express API for Vercel
+// Export for Vercel
 module.exports = app;

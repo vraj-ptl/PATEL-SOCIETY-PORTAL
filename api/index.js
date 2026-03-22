@@ -1,22 +1,27 @@
-const app = require('../server/server.js');
 const { initializeDatabase } = require('../server/database');
 
-let isDbInitialized = false;
+// Cache the initialization promise so it only runs once across warm starts
+let dbReady = null;
 
 module.exports = async (req, res) => {
     try {
-        if (!isDbInitialized) {
-            await initializeDatabase();
-            isDbInitialized = true;
+        // Initialize the database ONCE, then reuse for all subsequent requests
+        if (!dbReady) {
+            dbReady = initializeDatabase();
         }
-        // App is an Express instance, which can be called as a function (req, res)
+        await dbReady;
+
+        // Now load the app AFTER the database is connected
+        const app = require('../server/server');
         return app(req, res);
     } catch (err) {
-        console.error('Vercel Entry Point Error:', err);
-        res.status(500).json({ 
-            error: 'Server Initialization Failed', 
-            details: err.message,
-            tip: 'Check your MONGODB_URI environment variable in Vercel settings.'
+        // Reset so it retries on next request
+        dbReady = null;
+        console.error('Vercel API Error:', err);
+        res.status(500).json({
+            error: 'Database Connection Failed',
+            message: err.message,
+            fix: 'Add MONGODB_URI to your Vercel Project Settings > Environment Variables, then Redeploy.'
         });
     }
 };
