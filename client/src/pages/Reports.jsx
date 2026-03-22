@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from '../utils/axios';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { Download, FileText, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound } from '../utils/sounds';
@@ -130,7 +130,7 @@ export default function Reports() {
     doc.setTextColor(100);
     doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 28);
     
-    doc.autoTable({
+    autoTable(doc, {
         startY: 35,
         head: headers,
         body: tableData,
