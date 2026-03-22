@@ -118,6 +118,13 @@ router.post('/', requireAdmin, async (req, res) => {
             await createPastFeeRecords(member._id, newAccount._id, member.join_date);
         }
 
+        // Add ₹46,000 to Society Balance per new member
+        const balance = await SocietyBalance.findOne();
+        if (balance) {
+            balance.total_balance += createdMembers.length * 46000;
+            await balance.save();
+        }
+
         if (username && password) {
             const hash = bcrypt.hashSync(password, 10);
             await User.create({ username, password_hash: hash, role: 'member', account_id: newAccount._id });
@@ -146,6 +153,13 @@ router.post('/:accountNo/members', requireAdmin, async (req, res) => {
 
         // Auto-mark all past months as paid for the new member
         await createPastFeeRecords(newMember._id, account._id, newMember.join_date);
+
+        // Add ₹46,000 to Society Balance for the new member
+        const balance = await SocietyBalance.findOne();
+        if (balance) {
+            balance.total_balance += 46000;
+            await balance.save();
+        }
 
         const members = await Member.find({ account_id: account._id }).sort('position').lean();
         res.status(201).json({ ...account.toObject(), id: account._id, members: members.map(m => ({...m, id: m._id})) });
@@ -242,6 +256,13 @@ router.delete('/member/:id', requireAdmin, async (req, res) => {
             await remaining[i].save();
         }
 
+        // Deduct ₹46,000 from Society Balance upon a member quitting
+        const balance = await SocietyBalance.findOne();
+        if (balance) {
+            balance.total_balance -= 46000;
+            await balance.save();
+        }
+
         res.json({ message: 'Member deleted successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -257,9 +278,18 @@ router.delete('/:accountNo', requireAdmin, async (req, res) => {
         const activeLoans = await Loan.countDocuments({ account_id: account._id, status: 'active' });
         if (activeLoans > 0) return res.status(400).json({ error: 'Cannot delete account with active loans. Clear loans first.' });
 
+        const memberCount = await Member.countDocuments({ account_id: account._id });
+
         await User.deleteMany({ account_id: account._id });
         await Member.deleteMany({ account_id: account._id });
         await Account.findByIdAndDelete(account._id);
+
+        // Deduct ₹46,000 per member from Society Balance when the entire account is deleted
+        const balance = await SocietyBalance.findOne();
+        if (balance && memberCount > 0) {
+            balance.total_balance -= memberCount * 46000;
+            await balance.save();
+        }
 
         res.json({ message: 'Account deleted successfully' });
     } catch (err) {

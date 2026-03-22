@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const twilio = require('twilio');
 const User = require('../models/User');
 const Account = require('../models/Account');
 const Member = require('../models/Member');
@@ -67,8 +68,35 @@ router.post('/forgot-password/request-otp', async (req, res) => {
         user.reset_otp_expires = new Date(Date.now() + 90 * 1000); // 1.5 minutes
         await user.save();
 
-        // Simulate sending OTP
-        console.log(`\n\n=== OTP GENERATED ===\nSent to: ${phone}\nOTP: ${otp}\n=====================\n\n`);
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+
+        if (accountSid && authToken && twilioPhone) {
+            try {
+                const client = twilio(accountSid, authToken);
+                let formattedPhone = phone;
+                // Format basic Indian 10-digit number to E.164
+                if (/^\d{10}$/.test(formattedPhone)) {
+                    formattedPhone = '+91' + formattedPhone;
+                } else if (!formattedPhone.startsWith('+')) {
+                    formattedPhone = '+' + formattedPhone;
+                }
+
+                await client.messages.create({
+                    body: `Your Patel Society Portal OTP is: ${otp}. Valid for 1.5 minutes.`,
+                    from: twilioPhone,
+                    to: formattedPhone
+                });
+                console.log(`\n=== TWILIO SMS SENT ===\nTo: ${formattedPhone}\nOTP: ${otp}\n=====================\n`);
+            } catch (twilioErr) {
+                console.error('Twilio SMS Failed:', twilioErr.message);
+                console.log(`\n=== OTP GENERATED (TWILIO FAILED) ===\nSent to: ${phone}\nOTP: ${otp}\n=====================\n`);
+            }
+        } else {
+            console.log(`\n=== OTP GENERATED (SIMULATED) ===\nSent to: ${phone}\nOTP: ${otp}\n=====================\n`);
+            console.log("NOTE: To send real SMS, add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to .env\n");
+        }
 
         const maskedPhone = phone.length >= 10 
             ? phone.substring(0, 2) + '*'.repeat(phone.length - 4) + phone.substring(phone.length - 2)
