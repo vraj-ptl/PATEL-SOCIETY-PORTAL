@@ -57,6 +57,7 @@ function AppContent() {
       >
         {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
       </button>
+
       {/* 3D Global Canvas Background */}
       <div className="canvas-container">
         <Canvas camera={{ position: [0, 0, 10], fov: 45 }}>
