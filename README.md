@@ -1,3 +1,4 @@
- Portal Link : patel-society-portal.vercel.app
- trial username : dkp
- trial password: dkp123
+   Portal Link : https://patel-society-portal.vercel.app/
+			
+    trial username : dkp
+    trial password: dkp123
