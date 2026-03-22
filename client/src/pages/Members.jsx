@@ -377,7 +377,7 @@ export default function Members() {
                   <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     <input type="text" onFocus={playHoverSound} className="glass-input" placeholder="Name *" value={m.name} onChange={e => handleMemberChange(i, 'name', e.target.value)} required />
                     <input type="text" onFocus={playHoverSound} className="glass-input" placeholder="Village *" value={m.village} onChange={e => handleMemberChange(i, 'village', e.target.value)} required />
-                    <input type="text" onFocus={playHoverSound} className="glass-input" placeholder="Phone *" value={m.phone} onChange={e => handleMemberChange(i, 'phone', e.target.value)} required />
+                    <input type="text" onFocus={playHoverSound} className="glass-input" placeholder="Phone (Optional)" value={m.phone} onChange={e => handleMemberChange(i, 'phone', e.target.value)} />
                   </div>
                 ))}
               </div>

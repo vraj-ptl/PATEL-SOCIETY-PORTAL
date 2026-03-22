@@ -58,12 +58,14 @@ const dashboardRoutes = require('./routes/dashboard');
 const accountRoutes = require('./routes/members');
 const loanRoutes = require('./routes/loans');
 const feeRoutes = require('./routes/fees');
+const reportRoutes = require('./routes/reports');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/fees', feeRoutes);
+app.use('/api/reports', reportRoutes);
 
 // --- Local Development Server ---
 if (!process.env.VERCEL) {

@@ -94,8 +94,8 @@ router.post('/', requireAdmin, async (req, res) => {
         if (members.length > 6) return res.status(400).json({ error: 'Maximum 6 members allowed per account' });
 
         for (const member of members) {
-            if (!member.name || !member.village || !member.phone) {
-                return res.status(400).json({ error: 'Name, village, and phone are required for all members' });
+            if (!member.name || !member.village) {
+                return res.status(400).json({ error: 'Name and village are required for all members' });
             }
         }
 
@@ -147,7 +147,7 @@ router.post('/:accountNo/members', requireAdmin, async (req, res) => {
         if (existingCount >= 6) return res.status(400).json({ error: 'Maximum 6 members allowed per account' });
 
         const { name, village, phone } = req.body;
-        if (!name || !village || !phone) return res.status(400).json({ error: 'Name, village, and phone are required' });
+        if (!name || !village) return res.status(400).json({ error: 'Name and village are required' });
 
         const newMember = await Member.create({ account_id: account._id, name, village, phone, position: existingCount + 1 });
 

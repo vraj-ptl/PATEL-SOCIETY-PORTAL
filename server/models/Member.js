@@ -4,7 +4,7 @@ const memberSchema = new mongoose.Schema({
     account_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Account', required: true },
     name: { type: String, required: true },
     village: { type: String, required: true },
-    phone: { type: String, required: true },
+    phone: { type: String, required: false },
     position: { type: Number, required: true },
     join_date: { type: Date, default: Date.now },
     wallet_balance: { type: Number, default: 0 },
