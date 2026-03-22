@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
-import { Search, Plus, Trash2, ChevronDown, ChevronRight, X, User, Eye, EyeOff } from 'lucide-react';
+import { Search, Plus, Trash2, ChevronDown, ChevronRight, X, User, Eye, EyeOff, Edit2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
 
@@ -13,6 +13,10 @@ export default function Members() {
   const [expandedActive, setExpandedActive] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [calcData, setCalcData] = useState(null);
+
+  // Edit Member State
+  const [editingMember, setEditingMember] = useState(null);
+  const [editFormData, setEditFormData] = useState({ name: '', village: '', phone: '' });
 
   // Add Account Form State
   const [newAccNo, setNewAccNo] = useState('');
@@ -78,6 +82,30 @@ export default function Members() {
       playSuccessSound();
       fetchAccounts();
     } catch (err) { alert(err.response?.data?.error || 'Failed to delete'); }
+  };
+
+  const handleEditClick = (member) => {
+    setEditingMember(member.id);
+    setEditFormData({ name: member.name, village: member.village, phone: member.phone });
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditSubmit = async (memberId) => {
+    try {
+      await axios.put(`/api/accounts/${memberId}`, editFormData);
+      playSuccessSound();
+      setEditingMember(null);
+      fetchAccounts();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update member');
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditingMember(null);
   };
 
   const handleAddMemberRow = () => {
@@ -173,15 +201,37 @@ export default function Members() {
                   {account.members.map(member => (
                     <div key={member.id} className="glass-panel" style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                          <User size={32} color="#8b5cf6" />
-                          <div>
-                            <h4 style={{ margin: 0 }}>{member.name} {member.position === 1 && '(Primary)'}</h4>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{member.village} • {member.phone}</span>
-                          </div>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flex: 1, minWidth: 0 }}>
+                          <User size={32} color="#8b5cf6" style={{ flexShrink: 0 }} />
+                          {editingMember === member.id ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+                              <input type="text" className="glass-input" value={editFormData.name} onChange={e => handleEditChange('name', e.target.value)} placeholder="Name" style={{ padding: '0.3rem 0.5rem', fontSize: '0.875rem' }} />
+                              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <input type="text" className="glass-input" value={editFormData.village} onChange={e => handleEditChange('village', e.target.value)} placeholder="Village" style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', width: '50%' }} />
+                                <input type="text" className="glass-input" value={editFormData.phone} onChange={e => handleEditChange('phone', e.target.value)} placeholder="Phone" style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', width: '50%' }} />
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <h4 style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name} {member.position === 1 && '(Primary)'}</h4>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{member.village} • {member.phone}</span>
+                            </div>
+                          )}
                         </div>
                         {isAdmin && (
-                           <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" style={{ background: 'transparent', padding: '0.4rem' }} onClick={() => { playClickSound(); handleDeleteMember(member.id); }}><Trash2 size={16} color="var(--danger)" /></motion.button>
+                           <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'flex-start' }}>
+                             {editingMember === member.id ? (
+                               <>
+                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Save" style={{ background: 'transparent', padding: '0.4rem', color: 'var(--success)' }} onClick={() => { playClickSound(); handleEditSubmit(member.id); }}><Check size={16} /></motion.button>
+                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Cancel" style={{ background: 'transparent', padding: '0.4rem', color: 'var(--danger)' }} onClick={() => { playClickSound(); handleEditCancel(); }}><X size={16} /></motion.button>
+                               </>
+                             ) : (
+                               <>
+                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Edit" style={{ background: 'transparent', padding: '0.4rem', color: '#3b82f6' }} onClick={() => { playClickSound(); handleEditClick(member); }}><Edit2 size={16} /></motion.button>
+                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Delete" style={{ background: 'transparent', padding: '0.4rem', color: 'var(--danger)' }} onClick={() => { playClickSound(); handleDeleteMember(member.id); }}><Trash2 size={16} /></motion.button>
+                               </>
+                             )}
+                           </div>
                         )}
                       </div>
                       
