@@ -50,19 +50,20 @@ app.get('*', (req, res) => {
 });
 */
 
-// Database initialization for serverless environments
-const { initializeDatabase } = require('./database');
-initializeDatabase().catch(console.error);
+// Start local server if not in Vercel
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    const { initializeDatabase } = require('./database');
+    initializeDatabase().then(() => {
+        app.listen(PORT, () => {
+            console.log(`\n  🏛️  Patel Society Portal Server (MongoDB Version)`);
+            console.log(`  ═══════════════════════════════`);
+            console.log(`  🌐 Running at: http://localhost:${PORT}`);
+            console.log(`  👤 Admin Login: admin / admin123\n`);
+        });
+    }).catch(err => {
+        console.error('Failed to start local server:', err);
+    });
+}
 
 // Export the Express API for Vercel
 module.exports = app;
-
-// Start local server if not in Vercel
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-    app.listen(PORT, () => {
-        console.log(`\n  🏛️  Patel Society Portal Server (MongoDB Version)`);
-        console.log(`  ═══════════════════════════════`);
-        console.log(`  🌐 Running at: http://localhost:${PORT}`);
-        console.log(`  👤 Admin Login: admin / admin123\n`);
-    });
-}
