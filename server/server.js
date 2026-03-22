@@ -6,15 +6,22 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MongoStore = require('connect-mongo');
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:5173', credentials: true })); // For Vite React Dev Server
+app.use(cors({ 
+    origin: process.env.NODE_ENV === 'production' ? true : 'http://localhost:5173', 
+    credentials: true 
+})); // Allow all origins in production for Vercel, or restrict as needed
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
-    secret: 'patel-society-secret-key-2026',
+    secret: process.env.SESSION_SECRET || 'patel-society-secret-key-2026',
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/society'
+    }),
     cookie: {
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
@@ -43,11 +50,15 @@ app.get('*', (req, res) => {
 });
 */
 
-// Start server after DB initialization
-async function start() {
-    const { initializeDatabase } = require('./database');
-    await initializeDatabase();
+// Database initialization for serverless environments
+const { initializeDatabase } = require('./database');
+initializeDatabase().catch(console.error);
 
+// Export the Express API for Vercel
+module.exports = app;
+
+// Start local server if not in Vercel
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     app.listen(PORT, () => {
         console.log(`\n  🏛️  Patel Society Portal Server (MongoDB Version)`);
         console.log(`  ═══════════════════════════════`);
@@ -55,8 +66,3 @@ async function start() {
         console.log(`  👤 Admin Login: admin / admin123\n`);
     });
 }
-
-start().catch(err => {
-    console.error('Failed to start server:', err);
-    process.exit(1);
-});
