@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const loanSchema = new mongoose.Schema({
     account_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Account', required: true },
+    member_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: false },
     principal: { type: Number, required: true, enum: [50000, 100000] },
     time_period_years: { type: Number, required: true, enum: [1, 2] },
     interest: { type: Number, required: true },

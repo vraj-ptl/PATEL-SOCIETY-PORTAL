@@ -73,12 +73,19 @@ router.get('/', requireLogin, async (req, res) => {
                 };
             }
             
-            const member = await Member.findOne({ account_id: loan.account_id._id }).sort('position').lean();
+            let memberName = 'Unknown';
+            if (loan.member_id) {
+                const member = await Member.findById(loan.member_id).lean();
+                if (member) memberName = member.name;
+            } else {
+                const member = await Member.findOne({ account_id: loan.account_id._id }).sort('position').lean();
+                if (member) memberName = member.name;
+            }
             return {
                 ...loan,
                 id: loan._id,
                 account_no: loan.account_id.account_no,
-                member_name: member ? member.name : 'Unknown'
+                member_name: memberName
             };
         }));
 
@@ -102,13 +109,44 @@ router.get('/:id', requireLogin, async (req, res) => {
         const installments = await Installment.find({ loan_id: loan._id }).sort('installment_no').lean();
         const members = await Member.find({ account_id: loan.account_id._id }).sort('position').lean();
 
+        let loanMemberName = 'Unknown';
+        if (loan.member_id) {
+            const m = await Member.findById(loan.member_id).lean();
+            if (m) loanMemberName = m.name;
+        }
+
         res.json({
             ...loan,
             id: loan._id,
             account_no: loan.account_id.account_no,
+            member_name: loanMemberName,
             installments: installments.map(i => ({...i, id: i._id})),
-            members: members.map(m => m.name)
+            members: members.map(m => ({ id: m._id, name: m.name }))
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/loans/account-members/:accountNo — get members of an account for loan creation
+router.get('/account-members/:accountNo', requireAdmin, async (req, res) => {
+    try {
+        const account = await Account.findOne({ account_no: req.params.accountNo });
+        if (!account) return res.status(404).json({ error: 'Account not found' });
+
+        const members = await Member.find({ account_id: account._id }).sort('position').lean();
+        
+        // For each member, check if they already have an active loan
+        const result = await Promise.all(members.map(async m => {
+            const activeLoan = await Loan.findOne({ member_id: m._id, status: 'active' });
+            return {
+                id: m._id,
+                name: m.name,
+                has_active_loan: !!activeLoan
+            };
+        }));
+        
+        res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -117,7 +155,7 @@ router.get('/:id', requireLogin, async (req, res) => {
 // POST /api/loans — create new loan
 router.post('/', requireAdmin, async (req, res) => {
     try {
-        const { account_no, principal, time_period_years, start_month, start_year } = req.body;
+        const { account_no, member_id, principal, time_period_years, start_month, start_year } = req.body;
 
         if (!account_no || !principal || !time_period_years || !start_month || !start_year) {
             return res.status(400).json({ error: 'All fields are required' });
@@ -126,12 +164,27 @@ router.post('/', requireAdmin, async (req, res) => {
         const account = await Account.findOne({ account_no });
         if (!account) return res.status(404).json({ error: 'Account not found' });
 
+        // Validate member_id if provided
+        if (member_id) {
+            const member = await Member.findById(member_id);
+            if (!member) return res.status(404).json({ error: 'Member not found' });
+            if (member.account_id.toString() !== account._id.toString()) {
+                return res.status(400).json({ error: 'Member does not belong to this account' });
+            }
+            // Check if this member already has an active loan
+            const activeLoan = await Loan.findOne({ member_id: member._id, status: 'active' });
+            if (activeLoan) {
+                return res.status(400).json({ error: `${member.name} already has an active loan. Complete it first.` });
+            }
+        }
+
         const planKey = `${principal}_${time_period_years}`;
         const plan = LOAN_PLANS[planKey];
         if (!plan) return res.status(400).json({ error: 'Invalid loan plan' });
 
         const loan = new Loan({
             account_id: account._id,
+            member_id: member_id || undefined,
             principal: plan.principal,
             time_period_years: time_period_years,
             interest: plan.interest,

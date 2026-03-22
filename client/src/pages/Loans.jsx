@@ -20,6 +20,9 @@ export default function Loans() {
   const [newYears, setNewYears] = useState(1);
   const [newStartMonth, setNewStartMonth] = useState(1);
   const [newStartYear, setNewStartYear] = useState(new Date().getFullYear());
+  const [newMemberId, setNewMemberId] = useState('');
+  const [accountMembers, setAccountMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
   useEffect(() => {
     fetchLoans();
@@ -44,6 +47,24 @@ export default function Loans() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAccountMembers = async (accountNo) => {
+    if (!accountNo || accountNo.trim() === '') {
+      setAccountMembers([]);
+      setNewMemberId('');
+      return;
+    }
+    setLoadingMembers(true);
+    try {
+      const res = await axios.get(`/api/loans/account-members/${accountNo}`);
+      setAccountMembers(res.data);
+      setNewMemberId('');
+    } catch (err) {
+      setAccountMembers([]);
+    } finally {
+      setLoadingMembers(false);
     }
   };
 
@@ -91,9 +112,14 @@ export default function Loans() {
 
   const handleAddLoan = async (e) => {
     e.preventDefault();
+    if (!newMemberId) {
+      alert('Please select a member for the loan');
+      return;
+    }
     try {
       await axios.post('/api/loans', {
         account_no: newAccNo,
+        member_id: newMemberId,
         principal: Number(newPrincipal),
         time_period_years: Number(newYears),
         start_month: Number(newStartMonth),
@@ -101,6 +127,7 @@ export default function Loans() {
       });
       setShowAddModal(false);
       setNewAccNo(''); setNewPrincipal(50000); setNewYears(1); setNewStartMonth(1); 
+      setNewMemberId(''); setAccountMembers([]);
       playSuccessSound();
       fetchLoans();
     } catch (err) {
@@ -231,13 +258,37 @@ export default function Loans() {
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-panel" style={{ width: '90%', maxWidth: '400px', padding: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
               <h2>Issue Loan</h2>
-              <button className="glass-button" style={{ padding: '0.5rem', background: 'transparent' }} onClick={() => { playClickSound(); setShowAddModal(false); }}><X size={24} color="#fff" /></button>
+              <button className="glass-button" style={{ padding: '0.5rem', background: 'transparent' }} onClick={() => { playClickSound(); setShowAddModal(false); setAccountMembers([]); setNewMemberId(''); }}><X size={24} color="#fff" /></button>
             </div>
             <form onSubmit={(e) => { playClickSound(); handleAddLoan(e); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Account Number *</label>
-                <input type="text" onFocus={playHoverSound} className="glass-input" value={newAccNo} onChange={e => setNewAccNo(e.target.value)} required />
+                <input type="text" onFocus={playHoverSound} className="glass-input" value={newAccNo} onChange={e => { setNewAccNo(e.target.value); }} required />
+                <motion.button 
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} 
+                  type="button" 
+                  className="glass-button" 
+                  style={{ marginTop: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.8rem', width: '100%' }} 
+                  onClick={() => fetchAccountMembers(newAccNo)}
+                >
+                  {loadingMembers ? 'Loading...' : 'Load Members'}
+                </motion.button>
               </div>
+
+              {accountMembers.length > 0 && (
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Select Member *</label>
+                  <select className="glass-input" value={newMemberId} onChange={e => setNewMemberId(e.target.value)} required>
+                    <option value="" style={{background: '#1e293b'}}>-- Choose a member --</option>
+                    {accountMembers.map(m => (
+                      <option key={m.id} value={m.id} disabled={m.has_active_loan} style={{background: '#1e293b'}}>
+                        {m.name} {m.has_active_loan ? '(Active Loan ⛔)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Principal Amount</label>
                 <select className="glass-input" value={newPrincipal} onChange={e => setNewPrincipal(e.target.value)}>
