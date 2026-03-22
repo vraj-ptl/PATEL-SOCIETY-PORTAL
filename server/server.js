@@ -9,6 +9,9 @@ const MongoStore = connectMongo.MongoStore || connectMongo.default || connectMon
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Vercel's proxy (required for secure cookies to work behind HTTPS proxy)
+app.set('trust proxy', 1);
+
 // The MongoDB URI (used for both DB and session store)
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/society';
 

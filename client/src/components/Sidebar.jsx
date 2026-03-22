@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../utils/axios';
 import { Home, Users, CreditCard, LogOut, Wallet, Calendar, Info } from 'lucide-react';
 import { playHoverSound, playClickSound } from '../utils/sounds';
 import { motion } from 'framer-motion';

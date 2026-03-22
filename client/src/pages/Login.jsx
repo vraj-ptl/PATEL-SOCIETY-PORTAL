@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../utils/axios';
 import { Hexagon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '../utils/axios';
 import { IndianRupee, Users, CreditCard, CheckCircle, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
