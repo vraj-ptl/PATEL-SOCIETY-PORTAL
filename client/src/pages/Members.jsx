@@ -13,6 +13,7 @@ export default function Members() {
   const [expandedActive, setExpandedActive] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [calcData, setCalcData] = useState(null);
+  const [viewMember, setViewMember] = useState(null);
 
   // Edit Member State
   const [editingMember, setEditingMember] = useState(null);
@@ -199,12 +200,12 @@ export default function Members() {
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
                   {account.members.map(member => (
-                    <div key={member.id} className="glass-panel" style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)' }}>
+                    <div key={member.id} className="glass-panel" style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', cursor: 'pointer' }} onClick={() => { playClickSound(); setViewMember({ member, account }); }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flex: 1, minWidth: 0 }}>
                           <User size={32} color="#8b5cf6" style={{ flexShrink: 0 }} />
                           {editingMember === member.id ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }} onClick={e => e.stopPropagation()}>
                               <input type="text" className="glass-input" value={editFormData.name} onChange={e => handleEditChange('name', e.target.value)} placeholder="Name" style={{ padding: '0.3rem 0.5rem', fontSize: '0.875rem' }} />
                               <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <input type="text" className="glass-input" value={editFormData.village} onChange={e => handleEditChange('village', e.target.value)} placeholder="Village" style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', width: '50%' }} />
@@ -212,9 +213,9 @@ export default function Members() {
                               </div>
                             </div>
                           ) : (
-                            <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              <h4 style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name} {member.position === 1 && '(Primary)'}</h4>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{member.village} • {member.phone}</span>
+                            <div style={{ minWidth: 0 }}>
+                              <h4 style={{ margin: 0, wordBreak: 'break-word', lineHeight: '1.2' }}>{member.name} {member.position === 1 && '(Primary)'}</h4>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem' }}>{member.village} • {member.phone}</span>
                             </div>
                           )}
                         </div>
@@ -222,13 +223,13 @@ export default function Members() {
                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'flex-start' }}>
                              {editingMember === member.id ? (
                                <>
-                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Save" style={{ background: 'transparent', padding: '0.4rem', color: 'var(--success)' }} onClick={() => { playClickSound(); handleEditSubmit(member.id); }}><Check size={16} /></motion.button>
-                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Cancel" style={{ background: 'transparent', padding: '0.4rem', color: 'var(--danger)' }} onClick={() => { playClickSound(); handleEditCancel(); }}><X size={16} /></motion.button>
+                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Save" style={{ background: 'transparent', padding: '0.4rem', color: 'var(--success)' }} onClick={(e) => { e.stopPropagation(); playClickSound(); handleEditSubmit(member.id); }}><Check size={16} /></motion.button>
+                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Cancel" style={{ background: 'transparent', padding: '0.4rem', color: 'var(--danger)' }} onClick={(e) => { e.stopPropagation(); playClickSound(); handleEditCancel(); }}><X size={16} /></motion.button>
                                </>
                              ) : (
                                <>
-                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Edit" style={{ background: 'transparent', padding: '0.4rem', color: '#3b82f6' }} onClick={() => { playClickSound(); handleEditClick(member); }}><Edit2 size={16} /></motion.button>
-                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Delete" style={{ background: 'transparent', padding: '0.4rem', color: 'var(--danger)' }} onClick={() => { playClickSound(); handleDeleteMember(member.id); }}><Trash2 size={16} /></motion.button>
+                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Edit" style={{ background: 'transparent', padding: '0.4rem', color: '#3b82f6' }} onClick={(e) => { e.stopPropagation(); playClickSound(); handleEditClick(member); }}><Edit2 size={16} /></motion.button>
+                                 <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onMouseEnter={playHoverSound} className="glass-button" title="Delete" style={{ background: 'transparent', padding: '0.4rem', color: 'var(--danger)' }} onClick={(e) => { e.stopPropagation(); playClickSound(); handleDeleteMember(member.id); }}><Trash2 size={16} /></motion.button>
                                </>
                              )}
                            </div>
@@ -266,6 +267,66 @@ export default function Members() {
         ))}
         {accounts.length === 0 && <p className="text-muted">No accounts found.</p>}
       </motion.div>
+
+      {/* View Member Details Modal */}
+      {viewMember && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }} onClick={() => setViewMember(null)}>
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-panel" style={{ width: '100%', maxWidth: '450px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: 'var(--bg-dark)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div style={{ background: 'rgba(139, 92, 246, 0.2)', padding: '1rem', borderRadius: '50%', flexShrink: 0 }}>
+                  <User size={40} color="#8b5cf6" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.5rem', lineHeight: '1.2' }}>{viewMember.member.name}</h3>
+                  <p style={{ color: 'var(--accent)', margin: '0.25rem 0 0 0', fontWeight: 'bold' }}>{viewMember.member.position === 1 ? 'Primary Member' : 'Member'}</p>
+                </div>
+              </div>
+              <button className="glass-button" style={{ padding: '0.5rem', background: 'transparent' }} onClick={() => { playClickSound(); setViewMember(null); }}><X size={24} color="var(--text-muted)" /></button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px' }}>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Account Number</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '500' }}>#{viewMember.account.account_no}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Village</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '500' }}>{viewMember.member.village}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Phone Number</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '500' }}>{viewMember.member.phone}</div>
+              </div>
+              
+              <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {(isAdmin || viewMember.account.id === currentUserAccountId) ? (
+                  <>
+                    <div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Wallet Bonus</div>
+                        <div style={{ color: '#ec4899', fontWeight: 'bold', fontSize: '1.25rem' }}>₹{viewMember.member.wallet_balance || 0}</div>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Dues Paid</div>
+                        <div style={{ color: 'var(--success)', fontWeight: 'bold', fontSize: '1.25rem' }}>₹{viewMember.member.total_principal_paid || 0}</div>
+                    </div>
+                    {calcData && (
+                        <div style={{ gridColumn: '1 / -1' }}>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Liquid Exit Value</div>
+                            <div style={{ color: '#8b5cf6', fontWeight: 'bold', fontSize: '1.5rem' }}>₹{calcData.total_onboarding_or_exit_cost.toLocaleString()}</div>
+                        </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ gridColumn: '1 / -1', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
+                    Financial details are private.
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {showAddModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
