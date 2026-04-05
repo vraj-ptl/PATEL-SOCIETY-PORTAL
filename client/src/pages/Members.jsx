@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
-import { Search, Plus, Trash2, ChevronDown, ChevronRight, X, User, Eye, EyeOff, Edit2, Check } from 'lucide-react';
+import { Search, Plus, Trash2, ChevronDown, ChevronRight, X, User, Eye, EyeOff, Edit2, Check, UserPlus, Minus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
 
@@ -25,6 +25,10 @@ export default function Members() {
   const [newPass, setNewPass] = useState('');
   const [showNewPass, setShowNewPass] = useState(false);
   const [membersList, setMembersList] = useState([{ name: '', village: '', phone: '' }]);
+
+  // Add Member to Existing Account State
+  const [addMemberAccId, setAddMemberAccId] = useState(null);
+  const [addMemberData, setAddMemberData] = useState({ name: '', village: '', phone: '' });
 
   useEffect(() => {
     fetchAccounts();
@@ -114,10 +118,45 @@ export default function Members() {
     setMembersList([...membersList, { name: '', village: '', phone: '' }]);
   };
 
+  const handleRemoveMemberRow = (index) => {
+    if (membersList.length <= 1) return;
+    setMembersList(membersList.filter((_, i) => i !== index));
+  };
+
   const handleMemberChange = (index, field, value) => {
     const list = [...membersList];
     list[index][field] = value;
     setMembersList(list);
+  };
+
+  // Compute next sequential account number
+  const getNextAccountNo = () => {
+    if (accounts.length === 0) return '1';
+    const nums = accounts.map(a => parseInt(a.account_no, 10)).filter(n => !isNaN(n));
+    if (nums.length === 0) return '1';
+    return String(Math.max(...nums) + 1);
+  };
+
+  // Open add account modal with auto-filled account number
+  const openAddModal = () => {
+    setNewAccNo(getNextAccountNo());
+    setShowAddModal(true);
+  };
+
+  // Add member to existing account
+  const handleAddMemberToAccount = async (accountNo) => {
+    if (!addMemberData.name || !addMemberData.village) {
+      return alert('Name and Village are required');
+    }
+    try {
+      await axios.post(`/api/accounts/${accountNo}/members`, addMemberData);
+      playSuccessSound();
+      setAddMemberAccId(null);
+      setAddMemberData({ name: '', village: '', phone: '' });
+      fetchAccounts();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to add member');
+    }
   };
 
   const handleSubmitAccount = async (e) => {
@@ -169,7 +208,7 @@ export default function Members() {
         </div>
 
         {isAdmin && (
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onMouseEnter={playHoverSound} className="glass-button" onClick={() => { playClickSound(); setShowAddModal(true); }}>
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onMouseEnter={playHoverSound} className="glass-button" onClick={() => { playClickSound(); openAddModal(); }}>
             <Plus size={18} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> Add Account
           </motion.button>
         )}
@@ -261,6 +300,34 @@ export default function Members() {
                     </div>
                   ))}
                 </div>
+
+                {/* Add Member to Existing Account */}
+                {isAdmin && account.members.length < 6 && (
+                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                    {addMemberAccId === account.id ? (
+                      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <h4 style={{ margin: 0, color: '#8b5cf6' }}>Add New Member</h4>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <input type="text" className="glass-input" placeholder="Name *" value={addMemberData.name} onChange={e => setAddMemberData(p => ({ ...p, name: e.target.value }))} style={{ flex: 1, minWidth: '120px' }} />
+                          <input type="text" className="glass-input" placeholder="Village *" value={addMemberData.village} onChange={e => setAddMemberData(p => ({ ...p, village: e.target.value }))} style={{ flex: 1, minWidth: '120px' }} />
+                          <input type="text" className="glass-input" placeholder="Phone (Optional)" value={addMemberData.phone} onChange={e => setAddMemberData(p => ({ ...p, phone: e.target.value }))} style={{ flex: 1, minWidth: '120px' }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="glass-button" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', background: 'rgba(139,92,246,0.2)', border: '1px solid #8b5cf6' }} onClick={() => { playClickSound(); handleAddMemberToAccount(account.account_no); }}>
+                            <Check size={16} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} /> Save Member
+                          </motion.button>
+                          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="glass-button" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }} onClick={() => { playClickSound(); setAddMemberAccId(null); setAddMemberData({ name: '', village: '', phone: '' }); }}>
+                            <X size={16} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} /> Cancel
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onMouseEnter={playHoverSound} className="glass-button" style={{ width: '100%', padding: '0.6rem', fontSize: '0.875rem', background: 'rgba(139,92,246,0.08)', border: '1px dashed rgba(139,92,246,0.4)' }} onClick={() => { playClickSound(); setAddMemberAccId(account.id); }}>
+                        <UserPlus size={16} style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} /> Add New Member to This Account
+                      </motion.button>
+                    )}
+                  </div>
+                )}
               </motion.div>
             )}
           </motion.div>
@@ -374,10 +441,15 @@ export default function Members() {
                   )}
                 </div>
                 {membersList.map((m, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
                     <input type="text" onFocus={playHoverSound} className="glass-input" placeholder="Name *" value={m.name} onChange={e => handleMemberChange(i, 'name', e.target.value)} required />
                     <input type="text" onFocus={playHoverSound} className="glass-input" placeholder="Village *" value={m.village} onChange={e => handleMemberChange(i, 'village', e.target.value)} required />
                     <input type="text" onFocus={playHoverSound} className="glass-input" placeholder="Phone (Optional)" value={m.phone} onChange={e => handleMemberChange(i, 'phone', e.target.value)} />
+                    {membersList.length > 1 && (
+                      <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" title="Remove this member row" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '8px', padding: '0.45rem', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} onClick={() => { playClickSound(); handleRemoveMemberRow(i); }}>
+                        <Minus size={16} />
+                      </motion.button>
+                    )}
                   </div>
                 ))}
               </div>
