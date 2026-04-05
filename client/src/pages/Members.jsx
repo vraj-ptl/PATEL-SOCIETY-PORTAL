@@ -46,7 +46,14 @@ export default function Members() {
   const fetchAccounts = async () => {
     try {
       const res = await axios.get('/api/accounts');
-      setAccounts(res.data);
+      // Sort numerically so accounts display as 1,2,3...10,11 instead of 1,11,12,2...
+      const sorted = [...res.data].sort((a, b) => {
+        const numA = parseInt(a.account_no, 10);
+        const numB = parseInt(b.account_no, 10);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return a.account_no.localeCompare(b.account_no);
+      });
+      setAccounts(sorted);
 
       const calcRes = await axios.get('/api/fees/calculator');
       setCalcData(calcRes.data);
