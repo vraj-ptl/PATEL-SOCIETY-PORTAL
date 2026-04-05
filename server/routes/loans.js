@@ -292,12 +292,13 @@ router.put('/:id/installments/:installmentNo', requireAdmin, async (req, res) =>
 
         const balance = await SocietyBalance.findOne();
         if (balance) {
+            // ALL installments go back to available balance
             balance.total_balance += actualPaid;
             balance.total_pending_loans -= actualPaid;
             
-            // If loan just finished, add its interest to global tracking pool
-            if (loan.status === 'completed') {
-                balance.total_lifetime_interest_earned += loan.interest;
+            if (Number(req.params.installmentNo) === 1) {
+                // If it's the 1st installment (interest), ALSO track it in the lifetime interest counter
+                balance.total_lifetime_interest_earned += actualPaid;
             }
             
             await balance.save();
@@ -381,8 +382,15 @@ router.put('/:id/installments/:installmentNo/undo', requireAdmin, async (req, re
         // Reverse society balance changes
         const balance = await SocietyBalance.findOne();
         if (balance) {
+            // Reverse from available balance for ALL installments
             balance.total_balance -= refundAmount;
             balance.total_pending_loans += refundAmount;
+            
+            if (Number(req.params.installmentNo) === 1) {
+                // If undoing installment #1 (interest), reverse it from the tracker too
+                balance.total_lifetime_interest_earned -= refundAmount;
+            }
+            
             await balance.save();
         }
 
