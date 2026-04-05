@@ -317,6 +317,89 @@ router.put('/:id/installments/:installmentNo', requireAdmin, async (req, res) =>
     }
 });
 
+// PUT /api/loans/:id/installments/:installmentNo/undo — undo a paid installment
+router.put('/:id/installments/:installmentNo/undo', requireAdmin, async (req, res) => {
+    try {
+        const loan = await Loan.findById(req.params.id);
+        if (!loan) return res.status(404).json({ error: 'Loan not found' });
+
+        const installment = await Installment.findOne({ loan_id: loan._id, installment_no: req.params.installmentNo });
+        if (!installment) return res.status(404).json({ error: 'Installment not found' });
+
+        if (!installment.is_paid) return res.status(400).json({ error: 'Installment is not paid yet' });
+
+        const refundAmount = installment.paid_amount;
+
+        // If this installment had excess that auto-paid future ones, we need to restore them.
+        // Find all future installments that were auto-paid (paid_amount = 0, is_paid = true)
+        // and restore default amounts from the loan plan.
+        const planKey = `${loan.principal}_${loan.time_period_years}`;
+        const plan = LOAN_PLANS[planKey];
+
+        if (plan) {
+            // Check future installments that may have been affected by excess
+            const futureInstallments = await Installment.find({
+                loan_id: loan._id,
+                installment_no: { $gt: Number(req.params.installmentNo) }
+            }).sort('installment_no');
+
+            for (const future of futureInstallments) {
+                const originalAmount = plan.installments[future.installment_no - 1]?.amount || 0;
+                if (future.is_paid && future.paid_amount === 0) {
+                    // This was auto-paid by excess — fully undo it
+                    future.is_paid = false;
+                    future.paid_amount = 0;
+                    future.paid_date = undefined;
+                    future.default_amount = originalAmount;
+                    await future.save();
+                } else if (!future.is_paid && future.default_amount < originalAmount) {
+                    // This was partially reduced by excess — restore original amount
+                    future.default_amount = originalAmount;
+                    await future.save();
+                }
+            }
+        }
+
+        // Restore the original default_amount from the plan
+        const originalDefault = plan ? (plan.installments[installment.installment_no - 1]?.amount || 0) : installment.paid_amount;
+        installment.default_amount = originalDefault;
+        installment.paid_amount = 0;
+        installment.is_paid = false;
+        installment.paid_date = undefined;
+        await installment.save();
+
+        // Recalculate loan totals from all installments
+        const allInstallments = await Installment.find({ loan_id: loan._id });
+        const totalPaid = allInstallments.reduce((sum, i) => sum + i.paid_amount, 0);
+        const remainingBalance = allInstallments.reduce((sum, i) => i.is_paid ? sum : sum + i.default_amount, 0);
+
+        loan.total_paid = totalPaid;
+        loan.remaining_balance = remainingBalance;
+        loan.status = 'active'; // If undoing, loan can't be completed
+        await loan.save();
+
+        // Reverse society balance changes
+        const balance = await SocietyBalance.findOne();
+        if (balance) {
+            balance.total_balance -= refundAmount;
+            balance.total_pending_loans += refundAmount;
+            await balance.save();
+        }
+
+        const updatedLoan = await Loan.findById(loan._id).populate('account_id', 'account_no').lean();
+        const updatedInstallments = await Installment.find({ loan_id: loan._id }).sort('installment_no').lean();
+
+        res.json({
+            ...updatedLoan,
+            id: updatedLoan._id,
+            account_no: updatedLoan.account_id.account_no,
+            installments: updatedInstallments.map(i => ({...i, id: i._id}))
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // DELETE /api/loans/:id — delete a loan
 router.delete('/:id', requireAdmin, async (req, res) => {
     try {

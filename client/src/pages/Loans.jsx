@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, Undo2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
 
@@ -97,6 +97,18 @@ export default function Loans() {
       fetchLoans();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to pay installment');
+    }
+  };
+
+  const undoInstallment = async (loanId, instNo) => {
+    if (!window.confirm('Undo this installment payment? The amount will be reversed.')) return;
+    try {
+      await axios.put(`/api/loans/${loanId}/installments/${instNo}/undo`);
+      playSuccessSound();
+      viewInstallments(loanId);
+      fetchLoans();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to undo payment');
     }
   };
 
@@ -236,8 +248,15 @@ export default function Loans() {
                     </span>
                   </div>
                   {inst.is_paid ? (
-                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                      Paid: ₹{inst.paid_amount} on {inst.paid_date}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                        Paid: ₹{inst.paid_amount} on {inst.paid_date}
+                      </div>
+                      {isAdmin && (
+                        <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }} onMouseEnter={playHoverSound} className="glass-button" title="Undo this payment" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.3rem' }} onClick={() => { playClickSound(); undoInstallment(selectedLoanId, inst.installment_no); }}>
+                          <Undo2 size={14} /> Undo
+                        </motion.button>
+                      )}
                     </div>
                   ) : isAdmin && inst.default_amount > 0 ? (
                     <form onSubmit={(e) => { playClickSound(); payInstallment(selectedLoanId, inst.installment_no, e); }} style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
