@@ -22,13 +22,25 @@ export default function Reports() {
   const [feeEndMonth, setFeeEndMonth] = useState(currentMonth.toString());
   const [feeEndYear, setFeeEndYear] = useState(currentYear.toString());
 
+  const [instStartMonth, setInstStartMonth] = useState(currentMonth.toString());
+  const [instStartYear, setInstStartYear] = useState(currentYear.toString());
+  const [instEndMonth, setInstEndMonth] = useState(currentMonth.toString());
+  const [instEndYear, setInstEndYear] = useState(currentYear.toString());
+
   const monthsList = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  const [instMonthLabel, setInstMonthLabel] = useState(`${monthsList[new Date().getMonth()]} ${new Date().getFullYear()}`);
 
   const fetchReportData = useCallback(async (tab) => {
     const currentTab = tab || activeTab;
     setLoading(true);
     try {
+      // Helper to sort data by account_no numerically
+      const sortByAccountNo = (arr) => [...arr].sort((a, b) => {
+        const numA = parseInt(a.account_no, 10);
+        const numB = parseInt(b.account_no, 10);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return String(a.account_no).localeCompare(String(b.account_no));
+      });
+
       if (currentTab === 'loans') {
         const params = {};
         if (loanStart && loanEnd) {
@@ -36,28 +48,30 @@ export default function Reports() {
             params.endDate = loanEnd;
         }
         const res = await axios.get('/api/reports/loans', { params });
-        setData(res.data);
+        setData(sortByAccountNo(res.data));
       } else if (currentTab === 'fees') {
         const params = {
             startMonth: feeStartMonth, startYear: feeStartYear,
             endMonth: feeEndMonth, endYear: feeEndYear
         };
         const res = await axios.get('/api/reports/pending-fees', { params });
-        setData(res.data);
+        setData(sortByAccountNo(res.data));
       } else if (currentTab === 'installments') {
-        const params = {};
-        if (instMonthLabel && instMonthLabel.trim() !== '') {
-          params.monthLabel = instMonthLabel.trim();
-        }
+        const params = {
+          startMonth: instStartMonth,
+          startYear: instStartYear,
+          endMonth: instEndMonth,
+          endYear: instEndYear
+        };
         const res = await axios.get('/api/reports/pending-installments', { params });
-        setData(res.data);
+        setData(sortByAccountNo(res.data));
       }
     } catch (err) {
       console.error("Failed to fetch report data", err);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, loanStart, loanEnd, feeStartMonth, feeStartYear, feeEndMonth, feeEndYear, instMonthLabel]);
+  }, [activeTab, loanStart, loanEnd, feeStartMonth, feeStartYear, feeEndMonth, feeEndYear, instStartMonth, instStartYear, instEndMonth, instEndYear]);
 
   const switchTab = (tab) => {
     playClickSound();
@@ -104,7 +118,7 @@ export default function Reports() {
           ]);
       } else if (activeTab === 'installments') {
           title = `Pending Loan Installments Report`;
-          if (instMonthLabel) title += ` (${instMonthLabel})`;
+          title += ` (${monthsList[instStartMonth - 1]} ${instStartYear} - ${monthsList[instEndMonth - 1]} ${instEndYear})`;
           headers = [['#', 'Account No', 'Member Name', 'Principal', 'Installment', 'Month', 'Amount Due']];
           
           let rowCount = 0;
@@ -166,6 +180,27 @@ export default function Reports() {
   };
 
   const renderFilters = () => {
+    // Shared month/year range filter UI
+    const renderMonthYearRange = (sMonth, setSMonth, sYear, setSYear, eMonth, setEMonth, eYear, setEYear) => (
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>From:</label>
+          <select className="glass-input" style={{ width: '130px' }} value={sMonth} onChange={e => setSMonth(e.target.value)}>
+            {monthsList.map((m, i) => <option key={i} value={i + 1} style={{ background: '#1e293b' }}>{m}</option>)}
+          </select>
+          <input type="number" min="2018" max="2100" className="glass-input" style={{ width: '90px' }} value={sYear} onChange={e => setSYear(e.target.value)} />
+        </div>
+        <span style={{ color: 'var(--text-muted)' }}>to</span>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>To:</label>
+          <select className="glass-input" style={{ width: '130px' }} value={eMonth} onChange={e => setEMonth(e.target.value)}>
+            {monthsList.map((m, i) => <option key={i} value={i + 1} style={{ background: '#1e293b' }}>{m}</option>)}
+          </select>
+          <input type="number" min="2018" max="2100" className="glass-input" style={{ width: '90px' }} value={eYear} onChange={e => setEYear(e.target.value)} />
+        </div>
+      </div>
+    );
+
     return (
         <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
@@ -180,25 +215,14 @@ export default function Reports() {
                 </>
             )}
 
-            {activeTab === 'fees' && (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <input type="number" min="1" max="12" placeholder="MM" className="glass-input" style={{ width: '70px' }} value={feeStartMonth} onChange={e => setFeeStartMonth(e.target.value)} />
-                    <input type="number" min="2018" max="2100" placeholder="YYYY" className="glass-input" style={{ width: '90px' }} value={feeStartYear} onChange={e => setFeeStartYear(e.target.value)} />
-                    <span style={{ color: 'var(--text-muted)' }}>to</span>
-                    <input type="number" min="1" max="12" placeholder="MM" className="glass-input" style={{ width: '70px' }} value={feeEndMonth} onChange={e => setFeeEndMonth(e.target.value)} />
-                    <input type="number" min="2018" max="2100" placeholder="YYYY" className="glass-input" style={{ width: '90px' }} value={feeEndYear} onChange={e => setFeeEndYear(e.target.value)} />
-                </div>
+            {activeTab === 'fees' && renderMonthYearRange(
+              feeStartMonth, setFeeStartMonth, feeStartYear, setFeeStartYear,
+              feeEndMonth, setFeeEndMonth, feeEndYear, setFeeEndYear
             )}
 
-            {activeTab === 'installments' && (
-                <input 
-                    type="text" 
-                    placeholder="e.g. March 2026" 
-                    className="glass-input" 
-                    value={instMonthLabel} 
-                    onChange={e => setInstMonthLabel(e.target.value)} 
-                    style={{ width: '200px' }} 
-                />
+            {activeTab === 'installments' && renderMonthYearRange(
+              instStartMonth, setInstStartMonth, instStartYear, setInstStartYear,
+              instEndMonth, setInstEndMonth, instEndYear, setInstEndYear
             )}
 
             <motion.button 

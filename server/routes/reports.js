@@ -113,11 +113,30 @@ router.get('/pending-fees', requireLogin, async (req, res) => {
 // GET /api/reports/pending-installments
 router.get('/pending-installments', requireLogin, async (req, res) => {
     try {
-        const { monthLabel } = req.query; // e.g. "March 2026"
+        const { monthLabel, startMonth, startYear, endMonth, endYear } = req.query;
         let query = { is_paid: false };
         
-        // If no monthLabel provided, get ALL pending installments
-        if (monthLabel && monthLabel.trim() !== '') {
+        // Support date range filtering (same style as fees)
+        if (startMonth && startYear && endMonth && endYear) {
+            const sMonth = Number(startMonth);
+            const sYear = Number(startYear);
+            const eMonth = Number(endMonth);
+            const eYear = Number(endYear);
+            
+            // Build all month labels in range
+            const monthLabels = [];
+            for (let y = sYear; y <= eYear; y++) {
+                const mStart = (y === sYear) ? sMonth : 1;
+                const mEnd = (y === eYear) ? eMonth : 12;
+                for (let m = mStart; m <= mEnd; m++) {
+                    monthLabels.push(`${MONTH_NAMES[m - 1]} ${y}`);
+                }
+            }
+            if (monthLabels.length > 0) {
+                query.month_label = { $in: monthLabels };
+            }
+        } else if (monthLabel && monthLabel.trim() !== '') {
+            // Legacy single month filter
             query.month_label = monthLabel.trim();
         }
 
