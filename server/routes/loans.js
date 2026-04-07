@@ -418,6 +418,13 @@ router.delete('/:id', requireAdmin, async (req, res) => {
         if (balance) {
             balance.total_balance += (loan.principal - loan.total_paid);
             balance.total_pending_loans -= loan.remaining_balance;
+            
+            // Revert any interest paid from the total lifetime interest tracker
+            const firstInstallment = await Installment.findOne({ loan_id: loan._id, installment_no: 1 });
+            if (firstInstallment && firstInstallment.paid_amount > 0) {
+                balance.total_lifetime_interest_earned -= firstInstallment.paid_amount;
+            }
+
             await balance.save();
         }
 
