@@ -267,11 +267,26 @@ export default function Loans() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h3 style={{ margin: 0 }}>Installments</h3>
-                {isMobile && (
-                  <button onClick={() => setShowMobileInstallments(false)} className="glass-button" style={{ background: 'transparent', padding: '0.5rem' }}>
-                    <X size={24} color="var(--text-muted)" />
-                  </button>
-                )}
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={(e) => { e.stopPropagation(); playClickSound(); setSelectedLoanId(null); setInstallments([]); if (isMobile) setShowMobileInstallments(false); }}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    borderRadius: '50%',
+                    padding: '0.5rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--danger)',
+                    flexShrink: 0
+                  }}
+                  title="Close"
+                >
+                  <X size={20} />
+                </motion.button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: isMobile ? 1 : 'none', maxHeight: isMobile ? 'none' : '600px', overflowY: 'auto', paddingRight: '0.5rem' }}>
               {installments.map(inst => (
