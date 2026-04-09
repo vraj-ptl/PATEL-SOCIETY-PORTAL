@@ -13,6 +13,8 @@ export default function Loans() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showMobileInstallments, setShowMobileInstallments] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [panelTop, setPanelTop] = useState(0);
 
   // New Loan State
   const [newAccNo, setNewAccNo] = useState('');
@@ -68,7 +70,18 @@ export default function Loans() {
     }
   };
 
-  const viewInstallments = async (id) => {
+  const syncInstallments = async (id) => {
+    try {
+      const res = await axios.get(`/api/loans/${id}`);
+      setInstallments(res.data.installments);
+    } catch(err) { console.error(err); }
+  };
+
+  const viewInstallments = async (id, event) => {
+    if (event && event.currentTarget) {
+      setPanelTop(event.currentTarget.offsetTop);
+    }
+
     if (selectedLoanId === id) {
       if (isMobile) {
         setShowMobileInstallments(true);
@@ -93,7 +106,7 @@ export default function Loans() {
     try {
       await axios.put(`/api/loans/${loanId}/installments/${instNo}`, { paid_amount: Number(amount) });
       playSuccessSound();
-      viewInstallments(loanId);
+      syncInstallments(loanId);
       fetchLoans();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to pay installment');
@@ -105,7 +118,7 @@ export default function Loans() {
     try {
       await axios.put(`/api/loans/${loanId}/installments/${instNo}/undo`);
       playSuccessSound();
-      viewInstallments(loanId);
+      syncInstallments(loanId);
       fetchLoans();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to undo payment');
@@ -159,21 +172,36 @@ export default function Loans() {
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
+  const filteredLoans = loans.filter(loan => 
+    (loan.account_no && loan.account_no.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (loan.member_name && loan.member_name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
     <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }} style={{ position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 className="text-gradient" style={{ margin: 0 }}>Loans Management</h1>
-        {isAdmin && (
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onMouseEnter={playHoverSound} className="glass-button" onClick={() => { playClickSound(); setShowAddModal(true); }}>
-            <Plus size={18} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> New Loan
-          </motion.button>
-        )}
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <input 
+            type="text" 
+            placeholder="Search Acc No or Name..." 
+            className="glass-input" 
+            style={{ width: '250px' }}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {isAdmin && (
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onMouseEnter={playHoverSound} className="glass-button" onClick={() => { playClickSound(); setShowAddModal(true); }}>
+              <Plus size={18} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> New Loan
+            </motion.button>
+          )}
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: (selectedLoanId && !isMobile) ? '1fr 1fr' : '1fr', gap: '2rem', transition: 'all 0.3s' }}>
-        <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {loans.map(loan => (
-            <motion.div variants={itemVariants} key={loan.id} className={`glass-panel ${selectedLoanId === loan.id ? 'active' : ''}`} style={{ padding: '1.5rem', cursor: 'pointer', borderColor: selectedLoanId === loan.id ? 'var(--accent)' : 'var(--border-color)' }} onMouseEnter={playHoverSound} onClick={() => { playClickSound(); viewInstallments(loan.id); }}>
+      <div style={{ display: 'grid', gridTemplateColumns: (selectedLoanId && !isMobile) ? '1fr 1fr' : '1fr', gap: '2rem', transition: 'all 0.3s', position: 'relative' }}>
+        <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative' }}>
+          {filteredLoans.map(loan => (
+            <motion.div variants={itemVariants} key={loan.id} className={`glass-panel ${selectedLoanId === loan.id ? 'active' : ''}`} style={{ padding: '1.5rem', cursor: 'pointer', borderColor: selectedLoanId === loan.id ? 'var(--accent)' : 'var(--border-color)' }} onMouseEnter={playHoverSound} onClick={(e) => { playClickSound(); viewInstallments(loan.id, e); }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <h3 style={{ margin: 0 }}>Acc: {loan.account_no} - {loan.member_name}</h3>
                 <span className={`badge ${loan.status}`}>{loan.status.toUpperCase()}</span>
@@ -183,6 +211,7 @@ export default function Loans() {
                 <span>Type: {loan.time_period_years} Yrs</span>
                 <span>Balance: ₹{loan.remaining_balance}</span>
                 <span>Paid: ₹{loan.total_paid}</span>
+                <span style={{ gridColumn: '1 / 3' }}>Remaining Installments: <strong style={{ color: 'var(--text)' }}>{loan.remaining_installments}</strong></span>
               </div>
               {isAdmin && (
                 <div style={{ marginTop: '1rem', textAlign: 'right' }}>
@@ -226,7 +255,7 @@ export default function Loans() {
                   flexDirection: 'column',
                   padding: '1.5rem',
                 } : {
-                  padding: '1.5rem', alignSelf: 'start', position: 'sticky', top: '2rem' 
+                  padding: '1.5rem', alignSelf: 'start', marginTop: panelTop ? `${panelTop}px` : '0', transition: 'margin-top 0.3s ease' 
                 })
               }}
             >

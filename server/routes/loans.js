@@ -81,11 +81,15 @@ router.get('/', requireLogin, async (req, res) => {
                 const member = await Member.findOne({ account_id: loan.account_id._id }).sort('position').lean();
                 if (member) memberName = member.name;
             }
+
+            const remaining_installments = await Installment.countDocuments({ loan_id: loan._id, is_paid: false });
+
             return {
                 ...loan,
                 id: loan._id,
                 account_no: loan.account_id.account_no,
-                member_name: memberName
+                member_name: memberName,
+                remaining_installments
             };
         }));
 
