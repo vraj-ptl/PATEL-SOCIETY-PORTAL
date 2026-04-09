@@ -20,7 +20,7 @@ router.get('/', requireLogin, async (req, res) => {
             };
         }
 
-        const transactions = await Transaction.find(query).sort({ date: -1, recorded_at: -1 });
+        const transactions = await Transaction.find(query).sort({ recorded_at: -1 });
         res.json(transactions);
     } catch (err) {
         res.status(500).json({ error: err.message });
