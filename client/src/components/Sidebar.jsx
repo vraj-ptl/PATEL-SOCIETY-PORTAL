@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
-import { Home, Users, CreditCard, LogOut, Wallet, Calendar, Info, BarChart2, DollarSign, List } from 'lucide-react';
+import { Home, Users, CreditCard, Wallet, Calendar, Info, BarChart2, DollarSign, List } from 'lucide-react';
 import { playHoverSound, playClickSound } from '../utils/sounds';
 import { motion } from 'framer-motion';
 
@@ -13,6 +13,7 @@ const PortalWrapper = ({ isPortal, children }) => {
 export default function Sidebar() {
     const navigate = useNavigate();
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -20,15 +21,17 @@ export default function Sidebar() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const handleLogout = async () => {
-    try {
-      await axios.post('/api/auth/logout');
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout failed', error);
-      navigate('/login');
-    }
-  };
+    useEffect(() => {
+        const fetchRole = async () => {
+            try {
+                const res = await axios.get('/api/auth/me');
+                setIsAdmin(res.data.user?.role === 'admin');
+            } catch (err) {
+                console.error('Failed to fetch user role', err);
+            }
+        };
+        fetchRole();
+    }, []);
 
     return (
         <>
@@ -36,13 +39,6 @@ export default function Sidebar() {
             <PortalWrapper isPortal={isMobile}>
                 <div className="mobile-header">
                     <h2 className="text-gradient" style={{ margin: 0, fontSize: '1.25rem' }}>Patel Society</h2>
-                    <motion.button 
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => { playClickSound(); handleLogout(); }} 
-                        style={{ background: 'transparent', border: 'none', color: 'var(--danger)', padding: '0.5rem' }}
-                    >
-                        <LogOut size={22} />
-                    </motion.button>
                 </div>
             </PortalWrapper>
 
@@ -72,27 +68,22 @@ export default function Sidebar() {
           <NavLink to="/expenditures" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
             <DollarSign size={20} /> <span className="nav-text">Expenditures</span>
           </NavLink>
-          <NavLink to="/transactions" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
-            <List size={20} /> <span className="nav-text">Transactions</span>
-          </NavLink>
-          <NavLink to="/reports" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
-            <BarChart2 size={20} /> <span className="nav-text">Reports</span>
-          </NavLink>
+          {isAdmin && (
+            <NavLink to="/transactions" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+              <List size={20} /> <span className="nav-text">Transactions</span>
+            </NavLink>
+          )}
+          {isAdmin && (
+            <NavLink to="/reports" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+              <BarChart2 size={20} /> <span className="nav-text">Reports</span>
+            </NavLink>
+          )}
           <NavLink to="/about" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
             <Info size={20} /> <span className="nav-text">About</span>
           </NavLink>
         </nav>
 
-        <motion.button 
-          whileHover={{ scale: 1.02, x: 5 }}
-          whileTap={{ scale: 0.98 }}
-          onMouseEnter={playHoverSound}
-          className="nav-link logout-desktop-btn" 
-          onClick={() => { playClickSound(); handleLogout(); }} 
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%', color: 'var(--danger)' }}
-        >
-          <LogOut size={20} /> <span className="nav-text">Logout</span>
-        </motion.button>
+
       </div>
       </PortalWrapper>
     </>

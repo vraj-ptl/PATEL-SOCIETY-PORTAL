@@ -18,6 +18,7 @@ export default function FeeTracker() {
   const [searchTerm, setSearchTerm] = useState('');
   
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight && window.innerHeight <= 500);
   const [showMobileTimeline, setShowMobileTimeline] = useState(false);
 
   const [selectedMember, setSelectedMember] = useState(null);
@@ -28,7 +29,10 @@ export default function FeeTracker() {
 
   useEffect(() => {
     fetchInitialData();
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+      setIsLandscape(window.innerWidth > window.innerHeight && window.innerHeight <= 500);
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -75,7 +79,7 @@ export default function FeeTracker() {
   const selectMember = async (member) => {
     setSelectedMember(member);
     setFeeHistory(null);
-    if (isMobile) setShowMobileTimeline(true); // Open bottom sheet on mobile
+    if (isMobile && !isLandscape) setShowMobileTimeline(true); // Open bottom sheet on mobile portrait only
     try {
       const res = await axios.get(`/api/fees/member/${member.id}`);
       setFeeHistory(res.data.history);
@@ -155,20 +159,24 @@ export default function FeeTracker() {
     show: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
+  // In landscape phone mode, use desktop-like side-by-side layout
+  const useMobileLayout = isMobile && !isLandscape;
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} style={{ display: 'flex', gap: '2rem', height: isMobile ? 'calc(100vh - 120px)' : 'calc(100vh - 100px)' }}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} style={{ display: 'flex', gap: isLandscape ? '0.75rem' : '2rem', height: useMobileLayout ? 'calc(100vh - 120px)' : isLandscape ? 'calc(100vh - 80px)' : 'calc(100vh - 100px)' }}>
       {/* Left Sidebar: Member Search */}
       <div 
         className="glass-panel" 
         style={{ 
-          width: isMobile ? '100%' : '350px', 
+          width: useMobileLayout ? '100%' : isLandscape ? '280px' : '350px', 
           display: 'flex', 
           flexDirection: 'column', 
-          overflow: 'hidden'
+          overflow: 'hidden',
+          flexShrink: 0
         }}
       >
-        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-          <h2 style={{ margin: '0 0 1rem 0' }}>{isAdmin ? 'Search Members' : 'Your Family'}</h2>
+        <div style={{ padding: isLandscape ? '0.75rem 1rem' : '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+          <h2 style={{ margin: '0 0 0.5rem 0', fontSize: isLandscape ? '1rem' : undefined }}>{isAdmin ? 'Search Members' : 'Your Family'}</h2>
           {isAdmin && (
             <div style={{ position: 'relative' }}>
               <Search size={18} style={{ position: 'absolute', top: '10px', left: '10px', color: 'var(--text-muted)' }} />
@@ -192,25 +200,25 @@ export default function FeeTracker() {
               onMouseEnter={playHoverSound}
               onClick={() => { playClickSound(); selectMember(m); }}
               style={{
-                padding: '1rem 1.5rem',
+                padding: isLandscape ? '0.5rem 0.75rem' : '1rem 1.5rem',
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
                 cursor: 'pointer',
                 background: selectedMember?.id === m.id ? 'rgba(139, 92, 246, 0.2)' : 'transparent',
                 borderLeft: selectedMember?.id === m.id ? '3px solid #8b5cf6' : '3px solid transparent'
               }}
             >
-              <div style={{ fontWeight: 600 }}>{m.name}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Account #{m.account_no}</div>
+              <div style={{ fontWeight: 600, fontSize: isLandscape ? '0.85rem' : undefined }}>{m.name}</div>
+              <div style={{ fontSize: isLandscape ? '0.7rem' : '0.8rem', color: 'var(--text-muted)' }}>Account #{m.account_no}</div>
             </motion.div>
           ))}
         </motion.div>
       </div>
 
-      {/* Right Pane: Timeline (Normal on Desktop, Bottom Sheet on Mobile) */}
-      {(!isMobile || showMobileTimeline) && (
-        <PortalWrapper isPortal={isMobile}>
-          {/* Faded Background Overlay for Mobile */}
-          {isMobile && (
+      {/* Right Pane: Timeline (Normal on Desktop/Landscape, Bottom Sheet on Mobile Portrait) */}
+      {(!useMobileLayout || showMobileTimeline) && (
+        <PortalWrapper isPortal={useMobileLayout}>
+          {/* Faded Background Overlay for Mobile Portrait */}
+          {useMobileLayout && (
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
@@ -220,12 +228,12 @@ export default function FeeTracker() {
           )}
           
           <motion.div 
-            initial={isMobile ? { y: '100%' } : { opacity: 0 }}
-            animate={isMobile ? { y: 0 } : { opacity: 1 }}
+            initial={useMobileLayout ? { y: '100%' } : { opacity: 0 }}
+            animate={useMobileLayout ? { y: 0 } : { opacity: 1 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={!isMobile ? "glass-panel" : ""}
+            className={!useMobileLayout ? "glass-panel" : ""}
             style={{ 
-              ...(isMobile ? {
+              ...(useMobileLayout ? {
                 position: 'fixed',
                 bottom: '70px', /* Above the bottom nav bar */
                 left: 0,
@@ -246,7 +254,7 @@ export default function FeeTracker() {
             }}
           >
             {/* Header Area */}
-            {(!selectedMember && !isMobile) ? (
+            {(!selectedMember && !useMobileLayout) ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                 <div style={{ textAlign: 'center' }}>
                   <History size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
@@ -259,10 +267,30 @@ export default function FeeTracker() {
               <div style={{ background: '#8b5cf6', borderRadius: '50%', padding: '0.5rem' }}>
                 <User size={32} color="#fff" />
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <h2 style={{ margin: 0 }}>{selectedMember.name}</h2>
                 <div style={{ color: 'var(--text-muted)' }}>Acc #{selectedMember.account_no} • {selectedMember.phone}</div>
               </div>
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => { playClickSound(); setSelectedMember(null); setFeeHistory(null); if (useMobileLayout) setShowMobileTimeline(false); }}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '50%',
+                  padding: '0.5rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--danger)',
+                  flexShrink: 0
+                }}
+                title="Close"
+              >
+                <X size={20} />
+              </motion.button>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>

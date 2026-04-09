@@ -135,6 +135,31 @@ h1, h2, h3, h4, h5, h6 {
   right: 1.5rem;
 }
 
+/* Global Floating Logout Button */
+.global-logout-btn {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 999;
+  padding: 0.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(185, 28, 28, 0.9));
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+  transition: var(--transition-smooth);
+  backdrop-filter: blur(10px);
+}
+
+.global-logout-btn:hover {
+  box-shadow: 0 6px 25px rgba(239, 68, 68, 0.6);
+  transform: translateY(-2px);
+}
+
 /* App Layout */
 .app-container {
   position: relative;
@@ -416,8 +441,15 @@ body.light-mode .badge.active {
   }
   
   .theme-toggle-btn {
-    right: 5rem !important; /* Prevents collision with Logout button */
+    right: 1.5rem !important;
     top: 1.15rem !important;
+  }
+
+  .global-logout-btn {
+    bottom: 80px !important; /* Above the bottom nav bar */
+    right: 1rem !important;
+    padding: 0.65rem;
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5);
   }
   
   /* Bottom Navigation Transformation */
@@ -472,6 +504,25 @@ body.light-mode .badge.active {
   
   h1 { font-size: 1.5rem; }
   h2 { font-size: 1.25rem; }
+}
+
+/* Landscape Phone Mode — Fee Tracker Optimization */
+@media (max-height: 500px) and (orientation: landscape) {
+  .main-content {
+    padding: 0.5rem 0.75rem 70px 0.75rem;
+  }
+
+  .global-logout-btn {
+    bottom: 0.75rem !important;
+    right: 0.75rem !important;
+    padding: 0.5rem;
+  }
+
+  .theme-toggle-btn {
+    top: 0.75rem !important;
+    right: 0.75rem !important;
+    padding: 0.5rem;
+  }
 }
 
 /* Purple Dotted Fade Animation */

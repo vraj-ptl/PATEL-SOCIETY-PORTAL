@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Canvas } from '@react-three/fiber';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, LogOut } from 'lucide-react';
+import axios from './utils/axios';
 import ThreeBackground from './components/ThreeBackground';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -17,10 +18,14 @@ import Transactions from './pages/Transactions';
 import ForgotPassword from './pages/ForgotPassword';
 import Sidebar from './components/Sidebar';
 import { playClickSound, playHoverSound } from './utils/sounds';
+import { useNavigate } from 'react-router-dom';
 
 function AppContent() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isAuthPage = ['/', '/login', '/forgot-password'].includes(location.pathname);
+
+  const [isAdmin, setIsAdmin] = useState(null); // null = loading, true/false = resolved
 
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
 
@@ -32,6 +37,31 @@ function AppContent() {
     }
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Fetch user role for route guarding
+  useEffect(() => {
+    if (!isAuthPage) {
+      const fetchRole = async () => {
+        try {
+          const res = await axios.get('/api/auth/me');
+          setIsAdmin(res.data.user?.role === 'admin');
+        } catch (err) {
+          setIsAdmin(false);
+        }
+      };
+      fetchRole();
+    }
+  }, [isAuthPage]);
+
+  const handleLogout = async () => {
+    try {
+      await axios.post('/api/auth/logout');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed', error);
+      navigate('/login');
+    }
+  };
 
   const toggleTheme = () => {
     playClickSound();
@@ -59,6 +89,20 @@ function AppContent() {
       >
         {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
       </button>
+
+      {/* Global Floating Logout Button — visible on all authenticated pages */}
+      {!isAuthPage && (
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => { playClickSound(); handleLogout(); }}
+          onMouseEnter={playHoverSound}
+          className="global-logout-btn"
+          title="Logout"
+        >
+          <LogOut size={20} />
+        </motion.button>
+      )}
 
       {/* 3D Global Canvas Background */}
       <div className="canvas-container">
@@ -105,8 +149,8 @@ function AppContent() {
                     <Route path="/fees" element={<FeeTracker />} />
                     <Route path="/accounting" element={<Accounting />} />
                     <Route path="/expenditures" element={<Expenditures />} />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/transactions" element={<Transactions />} />
+                    <Route path="/reports" element={isAdmin === false ? <Navigate to="/dashboard" replace /> : <Reports />} />
+                    <Route path="/transactions" element={isAdmin === false ? <Navigate to="/dashboard" replace /> : <Transactions />} />
                     <Route path="/about" element={<About />} />
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>
