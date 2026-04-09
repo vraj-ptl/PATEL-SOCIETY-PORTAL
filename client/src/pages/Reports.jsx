@@ -27,6 +27,9 @@ export default function Reports() {
   const [instEndMonth, setInstEndMonth] = useState(currentMonth.toString());
   const [instEndYear, setInstEndYear] = useState(currentYear.toString());
 
+  const [expStart, setExpStart] = useState('');
+  const [expEnd, setExpEnd] = useState('');
+
   const monthsList = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   const fetchReportData = useCallback(async (tab) => {
@@ -65,13 +68,21 @@ export default function Reports() {
         };
         const res = await axios.get('/api/reports/pending-installments', { params });
         setData(sortByAccountNo(res.data));
+      } else if (currentTab === 'expenditures') {
+        const params = {};
+        if (expStart && expEnd) {
+            params.startDate = expStart;
+            params.endDate = expEnd;
+        }
+        const res = await axios.get('/api/expenditures', { params });
+        setData(res.data);
       }
     } catch (err) {
       console.error("Failed to fetch report data", err);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, loanStart, loanEnd, feeStartMonth, feeStartYear, feeEndMonth, feeEndYear, instStartMonth, instStartYear, instEndMonth, instEndYear]);
+  }, [activeTab, loanStart, loanEnd, feeStartMonth, feeStartYear, feeEndMonth, feeEndYear, instStartMonth, instStartYear, instEndMonth, instEndYear, expStart, expEnd]);
 
   const switchTab = (tab) => {
     playClickSound();
@@ -136,6 +147,17 @@ export default function Reports() {
                   ]);
               });
           });
+      } else if (activeTab === 'expenditures') {
+          title = `Society Expenditures Report`;
+          if (expStart && expEnd) title += ` (${expStart} to ${expEnd})`;
+          headers = [['#', 'Date', 'Category', 'Description', 'Amount']];
+          tableData = data.map((exp, i) => [
+              i + 1,
+              new Date(exp.date).toLocaleDateString('en-IN'),
+              exp.category_name,
+              exp.description,
+              `Rs. ${exp.amount}`
+          ]);
       }
 
       // Title
@@ -225,6 +247,14 @@ export default function Reports() {
               instEndMonth, setInstEndMonth, instEndYear, setInstEndYear
             )}
 
+            {activeTab === 'expenditures' && (
+                <>
+                    <input type="date" className="glass-input" value={expStart} onChange={e => setExpStart(e.target.value)} style={{ width: 'auto' }} />
+                    <span style={{ color: 'var(--text-muted)' }}>to</span>
+                    <input type="date" className="glass-input" value={expEnd} onChange={e => setExpEnd(e.target.value)} style={{ width: 'auto' }} />
+                </>
+            )}
+
             <motion.button 
                 whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                 className="glass-button" 
@@ -293,6 +323,13 @@ export default function Reports() {
             >
                 Remaining Installments
             </button>
+            <button 
+                className={`glass-button ${activeTab === 'expenditures' ? 'active' : ''}`}
+                style={{ background: activeTab === 'expenditures' ? 'var(--accent)' : 'transparent', border: 'none' }}
+                onClick={() => switchTab('expenditures')}
+            >
+                Expenditures
+            </button>
         </div>
 
         {renderFilters()}
@@ -307,8 +344,8 @@ export default function Reports() {
                     <thead>
                         <tr style={{ background: 'rgba(0,0,0,0.2)', color: 'var(--text-muted)' }}>
                             <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>#</th>
-                            <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Account No</th>
-                            <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Member</th>
+                            {activeTab !== 'expenditures' && <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Account No</th>}
+                            {activeTab !== 'expenditures' && <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Member</th>}
                             {activeTab === 'loans' && (
                                 <>
                                     <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Principal</th>
@@ -330,6 +367,14 @@ export default function Reports() {
                                     <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Installment</th>
                                     <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Month</th>
                                     <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Amount Due</th>
+                                </>
+                            )}
+                            {activeTab === 'expenditures' && (
+                                <>
+                                    <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Date</th>
+                                    <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Category</th>
+                                    <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Description</th>
+                                    <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>Amount</th>
                                 </>
                             )}
                         </tr>
@@ -387,6 +432,17 @@ export default function Reports() {
                                 })
                             );
                         })()}
+                        {activeTab === 'expenditures' && data.map((exp, i) => (
+                            <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>{i + 1}</td>
+                                <td style={{ padding: '1rem' }}>{new Date(exp.date).toLocaleDateString('en-IN')}</td>
+                                <td style={{ padding: '1rem' }}>
+                                    <span className="badge" style={{ background: 'rgba(255,255,255,0.1)' }}>{exp.category_name}</span>
+                                </td>
+                                <td style={{ padding: '1rem', maxWidth: '300px' }}>{exp.description}</td>
+                                <td style={{ padding: '1rem', color: 'var(--danger)', fontWeight: 'bold' }}>₹{exp.amount}</td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             )}

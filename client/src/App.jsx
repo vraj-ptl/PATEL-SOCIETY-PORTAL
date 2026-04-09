@@ -13,6 +13,7 @@ import FeeTracker from './pages/FeeTracker';
 import About from './pages/About';
 import Reports from './pages/Reports';
 import Expenditures from './pages/Expenditures';
+import Transactions from './pages/Transactions';
 import ForgotPassword from './pages/ForgotPassword';
 import Sidebar from './components/Sidebar';
 import { playClickSound, playHoverSound } from './utils/sounds';
@@ -103,8 +104,9 @@ function AppContent() {
                     <Route path="/loans" element={<Loans />} />
                     <Route path="/fees" element={<FeeTracker />} />
                     <Route path="/accounting" element={<Accounting />} />
-                    <Route path="/reports" element={<Reports />} />
                     <Route path="/expenditures" element={<Expenditures />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/transactions" element={<Transactions />} />
                     <Route path="/about" element={<About />} />
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>

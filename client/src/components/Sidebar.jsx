@@ -1,14 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
-import { Home, Users, CreditCard, LogOut, Wallet, Calendar, Info, BarChart2, DollarSign } from 'lucide-react';
+import { Home, Users, CreditCard, LogOut, Wallet, Calendar, Info, BarChart2, DollarSign, List } from 'lucide-react';
 import { playHoverSound, playClickSound } from '../utils/sounds';
 import { motion } from 'framer-motion';
 
-export default function Sidebar() {
-  const navigate = useNavigate();
+const PortalWrapper = ({ isPortal, children }) => {
+  return isPortal ? createPortal(children, document.body) : <>{children}</>;
+};
 
-  const handleLogout = async () => {
+export default function Sidebar() {
+    const navigate = useNavigate();
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const handleLogout = async () => {
     try {
       await axios.post('/api/auth/logout');
       navigate('/login');
@@ -18,21 +30,24 @@ export default function Sidebar() {
     }
   };
 
-  return (
-    <>
-      {/* Mobile Top App Bar (Hidden on Desktop via CSS) */}
-      <div className="mobile-header">
-        <h2 className="text-gradient" style={{ margin: 0, fontSize: '1.25rem' }}>Patel Society</h2>
-        <motion.button 
-          whileTap={{ scale: 0.9 }}
-          onClick={() => { playClickSound(); handleLogout(); }} 
-          style={{ background: 'transparent', border: 'none', color: 'var(--danger)', padding: '0.5rem' }}
-        >
-          <LogOut size={22} />
-        </motion.button>
-      </div>
+    return (
+        <>
+            {/* Mobile Top App Bar */}
+            <PortalWrapper isPortal={isMobile}>
+                <div className="mobile-header">
+                    <h2 className="text-gradient" style={{ margin: 0, fontSize: '1.25rem' }}>Patel Society</h2>
+                    <motion.button 
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => { playClickSound(); handleLogout(); }} 
+                        style={{ background: 'transparent', border: 'none', color: 'var(--danger)', padding: '0.5rem' }}
+                    >
+                        <LogOut size={22} />
+                    </motion.button>
+                </div>
+            </PortalWrapper>
 
-      <div className="sidebar">
+            <PortalWrapper isPortal={isMobile}>
+                <div className="sidebar">
         <div className="sidebar-brand-wrapper" style={{ padding: '0 1rem', marginBottom: '2rem' }}>
           <h2 className="text-gradient" style={{ margin: 0 }}>Patel Society</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Management Portal</p>
@@ -54,11 +69,14 @@ export default function Sidebar() {
           <NavLink to="/accounting" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
             <Wallet size={20} /> <span className="nav-text">Accounting</span>
           </NavLink>
+          <NavLink to="/expenditures" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+            <DollarSign size={20} /> <span className="nav-text">Expenditures</span>
+          </NavLink>
           <NavLink to="/reports" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
             <BarChart2 size={20} /> <span className="nav-text">Reports</span>
           </NavLink>
-          <NavLink to="/expenditures" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
-            <DollarSign size={20} /> <span className="nav-text">Expenditures</span>
+          <NavLink to="/transactions" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+            <List size={20} /> <span className="nav-text">Transactions</span>
           </NavLink>
           <NavLink to="/about" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
             <Info size={20} /> <span className="nav-text">About</span>
@@ -76,6 +94,7 @@ export default function Sidebar() {
           <LogOut size={20} /> <span className="nav-text">Logout</span>
         </motion.button>
       </div>
+      </PortalWrapper>
     </>
   );
 }

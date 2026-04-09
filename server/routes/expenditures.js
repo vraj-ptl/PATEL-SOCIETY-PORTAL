@@ -4,6 +4,7 @@ const { requireLogin, requireAdmin } = require('../middleware/auth');
 const ExpenditureCategory = require('../models/ExpenditureCategory');
 const Expenditure = require('../models/Expenditure');
 const SocietyBalance = require('../models/SocietyBalance');
+const Transaction = require('../models/Transaction');
 
 // --- Categories ---
 
@@ -52,7 +53,19 @@ router.delete('/categories/:id', requireAdmin, async (req, res) => {
 // GET all expenditures
 router.get('/', requireLogin, async (req, res) => {
     try {
-        const expenditures = await Expenditure.find()
+        const { startDate, endDate } = req.query;
+        let query = {};
+
+        if (startDate && endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            query.date = {
+                $gte: new Date(startDate),
+                $lte: end
+            };
+        }
+
+        const expenditures = await Expenditure.find(query)
             .populate('category_id')
             .sort({ date: -1, recorded_at: -1 });
         
@@ -98,9 +111,20 @@ router.post('/', requireAdmin, async (req, res) => {
         await expenditure.save();
 
         // Update Society Balance
+        const before = balance.total_balance;
         balance.total_balance -= amountNum;
         balance.total_expenditure = (balance.total_expenditure || 0) + amountNum;
         await balance.save();
+
+        await Transaction.create({
+            type: 'EXPENDITURE',
+            amount: amountNum,
+            balance_before: before,
+            balance_after: balance.total_balance,
+            description: `Logged expenditure of ₹${amountNum} for ${category.name} (${description})`,
+            is_deduction: true,
+            date: new Date(date)
+        });
 
         const populated = await Expenditure.findById(expenditure._id).populate('category_id');
 
@@ -127,9 +151,20 @@ router.delete('/:id/undo', requireAdmin, async (req, res) => {
 
         const balance = await SocietyBalance.findOne();
         if (balance) {
+            const before = balance.total_balance;
             balance.total_balance += expenditure.amount;
             balance.total_expenditure -= expenditure.amount;
             await balance.save();
+
+            await Transaction.create({
+                type: 'EXPENDITURE',
+                amount: expenditure.amount,
+                balance_before: before,
+                balance_after: balance.total_balance,
+                description: `Reversed expenditure of ₹${expenditure.amount} (${expenditure.description})`,
+                is_deduction: false,
+                date: new Date()
+            });
         }
 
         await Expenditure.findByIdAndDelete(req.params.id);

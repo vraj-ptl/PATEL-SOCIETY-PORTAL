@@ -68,6 +68,7 @@ app.use('/api/loans', loanRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/expenditures', expenditureRoutes);
+app.use('/api/transactions', require('./routes/transactions'));
 
 // --- Local Development Server ---
 if (!process.env.VERCEL) {

@@ -6,6 +6,7 @@ const Installment = require('../models/Installment');
 const Account = require('../models/Account');
 const Member = require('../models/Member');
 const SocietyBalance = require('../models/SocietyBalance');
+const Transaction = require('../models/Transaction');
 
 const LOAN_PLANS = {
     '50000_1': {
@@ -214,9 +215,22 @@ router.post('/', requireAdmin, async (req, res) => {
         // Update society balance
         const balance = await SocietyBalance.findOne();
         if (balance) {
+            const before = balance.total_balance;
             balance.total_balance -= plan.principal;
             balance.total_pending_loans += plan.totalAmount;
             await balance.save();
+
+            let memberNameForLog = member_id ? (await Member.findById(member_id)).name : 'Account Team';
+
+            await Transaction.create({
+                type: 'LOAN_ISSUE',
+                amount: plan.principal,
+                balance_before: before,
+                balance_after: balance.total_balance,
+                description: `Issued ₹${plan.principal} loan to ${memberNameForLog} (Account ${account_no})`,
+                is_deduction: true,
+                date: new Date()
+            });
         }
 
         const populatedLoan = await Loan.findById(loan._id).populate('account_id', 'account_no').lean();
@@ -296,6 +310,7 @@ router.put('/:id/installments/:installmentNo', requireAdmin, async (req, res) =>
 
         const balance = await SocietyBalance.findOne();
         if (balance) {
+            const before = balance.total_balance;
             // ALL installments go back to available balance
             balance.total_balance += actualPaid;
             balance.total_pending_loans -= actualPaid;
@@ -306,6 +321,16 @@ router.put('/:id/installments/:installmentNo', requireAdmin, async (req, res) =>
             }
             
             await balance.save();
+
+            await Transaction.create({
+                type: 'LOAN_INSTALLMENT',
+                amount: actualPaid,
+                balance_before: before,
+                balance_after: balance.total_balance,
+                description: `Received ₹${actualPaid} installment payment for Loan ${loan._id.toString().slice(-4)}`,
+                is_deduction: false,
+                date: new Date()
+            });
         }
 
         const updatedLoan = await Loan.findById(loan._id).populate('account_id', 'account_no').lean();
@@ -386,6 +411,7 @@ router.put('/:id/installments/:installmentNo/undo', requireAdmin, async (req, re
         // Reverse society balance changes
         const balance = await SocietyBalance.findOne();
         if (balance) {
+            const before = balance.total_balance;
             // Reverse from available balance for ALL installments
             balance.total_balance -= refundAmount;
             balance.total_pending_loans += refundAmount;
@@ -396,6 +422,16 @@ router.put('/:id/installments/:installmentNo/undo', requireAdmin, async (req, re
             }
             
             await balance.save();
+
+            await Transaction.create({
+                type: 'LOAN_INSTALLMENT_REVERSAL',
+                amount: refundAmount,
+                balance_before: before,
+                balance_after: balance.total_balance,
+                description: `Undid/Reversed ₹${refundAmount} installment payment for Loan ${loan._id.toString().slice(-4)}`,
+                is_deduction: true,
+                date: new Date()
+            });
         }
 
         const updatedLoan = await Loan.findById(loan._id).populate('account_id', 'account_no').lean();
@@ -420,7 +456,9 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 
         const balance = await SocietyBalance.findOne();
         if (balance) {
-            balance.total_balance += (loan.principal - loan.total_paid);
+            const before = balance.total_balance;
+            const toAdd = (loan.principal - loan.total_paid);
+            balance.total_balance += toAdd;
             balance.total_pending_loans -= loan.remaining_balance;
             
             // Revert any interest paid from the total lifetime interest tracker
@@ -430,6 +468,16 @@ router.delete('/:id', requireAdmin, async (req, res) => {
             }
 
             await balance.save();
+
+            await Transaction.create({
+                type: 'LOAN_DELETION',
+                amount: Math.abs(toAdd),
+                balance_before: before,
+                balance_after: balance.total_balance,
+                description: `Deleted Loan ${loan._id.toString().slice(-4)}. Refunded outstanding principal ₹${toAdd}.`,
+                is_deduction: false,
+                date: new Date()
+            });
         }
 
         await Installment.deleteMany({ loan_id: loan._id });

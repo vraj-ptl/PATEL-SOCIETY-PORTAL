@@ -4,6 +4,7 @@ const { requireLogin, requireAdmin } = require('../middleware/auth');
 const Member = require('../models/Member');
 const MonthlyFee = require('../models/MonthlyFee');
 const SocietyBalance = require('../models/SocietyBalance');
+const Transaction = require('../models/Transaction');
 
 const START_YEAR = 2018;
 const START_MONTH = 8; // August
@@ -116,8 +117,19 @@ router.post('/pay', requireAdmin, async (req, res) => {
 
         const balance = await SocietyBalance.findOne();
         if (balance) {
+            const before = balance.total_balance;
             balance.total_balance += 500;
             await balance.save();
+
+            await Transaction.create({
+                type: 'FEE_PAYMENT',
+                amount: 500,
+                balance_before: before,
+                balance_after: balance.total_balance,
+                description: `Paid monthly fee (₹500) for ${month}/${year} by ${member.name}`,
+                is_deduction: false,
+                date: new Date()
+            });
         }
 
         res.json({ message: `Successfully marked ${month}/${year} as paid for ${member.name}.` });
@@ -147,8 +159,19 @@ router.post('/unpay', requireAdmin, async (req, res) => {
 
         const balance = await SocietyBalance.findOne();
         if (balance) {
+            const before = balance.total_balance;
             balance.total_balance -= 500;
             await balance.save();
+
+            await Transaction.create({
+                type: 'FEE_PAYMENT_REVERSAL',
+                amount: 500,
+                balance_before: before,
+                balance_after: balance.total_balance,
+                description: `Reversed/Unpaid monthly fee (₹500) for ${month}/${year} by ${member.name}`,
+                is_deduction: true,
+                date: new Date()
+            });
         }
 
         res.json({ message: `Successfully reversed ${month}/${year} as unpaid for ${member.name}.` });

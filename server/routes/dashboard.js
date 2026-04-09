@@ -5,6 +5,7 @@ const SocietyBalance = require('../models/SocietyBalance');
 const Loan = require('../models/Loan');
 const Account = require('../models/Account');
 const Member = require('../models/Member');
+const Transaction = require('../models/Transaction');
 
 // GET /api/dashboard
 router.get('/', requireLogin, async (req, res) => {
@@ -42,8 +43,19 @@ router.post('/add-balance', async (req, res) => {
 
         let balance = await SocietyBalance.findOne();
         if (balance) {
+            const before = balance.total_balance;
             balance.total_balance += Number(amount);
             await balance.save();
+
+            await Transaction.create({
+                type: 'ACCOUNTING',
+                amount: Number(amount),
+                balance_before: before,
+                balance_after: balance.total_balance,
+                description: `Manually added funds to society balance.`,
+                is_deduction: false,
+                date: new Date()
+            });
         }
         res.json(balance);
     } catch (err) {
@@ -63,8 +75,19 @@ router.post('/remove-balance', async (req, res) => {
 
         let balance = await SocietyBalance.findOne();
         if (balance) {
+            const before = balance.total_balance;
             balance.total_balance -= Number(amount);
             await balance.save();
+
+            await Transaction.create({
+                type: 'ACCOUNTING',
+                amount: Number(amount),
+                balance_before: before,
+                balance_after: balance.total_balance,
+                description: `Manually removed funds from society balance.`,
+                is_deduction: true,
+                date: new Date()
+            });
         }
         res.json(balance);
     } catch (err) {
@@ -85,13 +108,25 @@ router.post('/set-balance', async (req, res) => {
         }
 
         let balance = await SocietyBalance.findOne();
+        let before = 0;
         if (!balance) {
             // Should exist due to DB init, but just in case
             balance = new SocietyBalance({ total_balance: Number(amount) });
         } else {
+            before = balance.total_balance;
             balance.total_balance = Number(amount);
         }
         await balance.save();
+        
+        await Transaction.create({
+            type: 'ACCOUNTING',
+            amount: Math.abs(Number(amount) - before),
+            balance_before: before,
+            balance_after: balance.total_balance,
+            description: `Manually modified Total Society Balance directly to ₹${Number(amount)}.`,
+            is_deduction: Number(amount) < before,
+            date: new Date()
+        });
         
         res.json(balance);
     } catch (err) {
@@ -117,8 +152,19 @@ router.post('/distribute-bonus', async (req, res) => {
             return res.status(400).json({ error: 'Insufficient Society Balance to distribute bonus to all members' });
         }
 
+        const before = balance.total_balance;
         balance.total_balance -= totalCost;
         await balance.save();
+
+        await Transaction.create({
+            type: 'ACCOUNTING',
+            amount: totalCost,
+            balance_before: before,
+            balance_after: balance.total_balance,
+            description: `Distributed ₹${bonusPerMember} bonus to ${numMembers} members' virtual wallets.`,
+            is_deduction: true,
+            date: new Date()
+        });
 
         // Bonus is now per-MEMBER wallet, not account!
         await Member.updateMany({}, { $inc: { wallet_balance: Number(bonusPerMember) } });
