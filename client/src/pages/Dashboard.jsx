@@ -3,6 +3,7 @@ import axios from '../utils/axios';
 import { IndianRupee, Users, CreditCard, CheckCircle, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
+import Loader from '../components/Loader';
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -91,13 +92,7 @@ export default function Dashboard() {
     } catch (err) { alert(err.response?.data?.error || 'Error updating interest'); }
   };
 
-  if (loading) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-muted)' }}>
-      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-        Loading dashboard...
-      </motion.div>
-    </div>
-  );
+  if (loading) return <Loader text="Loading dashboard..." />;
 
   if (error) return (
     <div style={{ padding: '2rem', textAlign: 'center' }}>

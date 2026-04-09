@@ -4,6 +4,7 @@ import axios from '../utils/axios';
 import { Plus, Trash2, X, Undo2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
+import Loader from '../components/Loader';
 
 const PortalWrapper = ({ isPortal, children }) => {
   return isPortal ? createPortal(children, document.body) : <>{children}</>;
@@ -165,7 +166,7 @@ export default function Loans() {
     }
   };
 
-  if (loading) return <div>Loading loans...</div>;
+  if (loading) return <Loader text="Loading loans..." />;
 
   const containerVariants = {
     hidden: { opacity: 0 },

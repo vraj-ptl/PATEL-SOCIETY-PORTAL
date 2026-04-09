@@ -4,6 +4,7 @@ import axios from '../utils/axios';
 import { Search, History, Check, X, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
+import Loader from '../components/Loader';
 
 const PortalWrapper = ({ isPortal, children }) => {
   return isPortal ? createPortal(children, document.body) : <>{children}</>;
@@ -132,7 +133,7 @@ export default function FeeTracker() {
     });
   }
 
-  if (loading) return <div>Loading Fee Tracker...</div>;
+  if (loading) return <Loader text="Loading Fee Tracker..." />;
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -265,7 +266,7 @@ export default function FeeTracker() {
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
-              {!feeHistory ? <div>Loading timeline...</div> : (
+              {!feeHistory ? <Loader text="Loading timeline..." /> : (
                 <motion.div variants={timelineContainerVariants} initial="hidden" animate="show">
                   {Object.keys(groupedHistory).sort((a,b) => b - a).map(year => (
                     <div key={year} style={{ marginBottom: '2.5rem' }}>

@@ -4,6 +4,7 @@ import axios from '../utils/axios';
 import { Plus, Trash2, X, Undo2, LogOut, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
+import Loader from '../components/Loader';
 
 export default function Expenditures() {
   const [expenditures, setExpenditures] = useState([]);
@@ -109,7 +110,7 @@ export default function Expenditures() {
     }
   };
 
-  if (loading) return <div>Loading expenditures...</div>;
+  if (loading) return <Loader text="Loading expenditures..." />;
 
   const containerVariants = {
     hidden: { opacity: 0 },

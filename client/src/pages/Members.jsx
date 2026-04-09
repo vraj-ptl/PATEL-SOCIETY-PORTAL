@@ -4,6 +4,7 @@ import axios from '../utils/axios';
 import { Search, Plus, Trash2, ChevronDown, ChevronRight, X, User, Eye, EyeOff, Edit2, Check, UserPlus, Minus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
+import Loader from '../components/Loader';
 
 export default function Members() {
   const [accounts, setAccounts] = useState([]);
@@ -186,7 +187,7 @@ export default function Members() {
     }
   };
 
-  if (loading) return <div>Loading members...</div>;
+  if (loading) return <Loader text="Loading members..." />;
 
   const containerVariants = {
     hidden: { opacity: 0 },

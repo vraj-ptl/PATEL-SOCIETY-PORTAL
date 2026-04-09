@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import { Download, List, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound } from '../utils/sounds';
+import Loader from '../components/Loader';
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
@@ -158,7 +159,7 @@ export default function Transactions() {
 
         <div className="glass-panel" style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
             {loading ? (
-                <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading transactions...</div>
+                <Loader text="Loading transactions..." />
             ) : transactions.length === 0 ? (
                 <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>No transactions found for the selected dates.</div>
             ) : (

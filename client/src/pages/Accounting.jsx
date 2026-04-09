@@ -3,6 +3,7 @@ import axios from '../utils/axios';
 import { PlusCircle, MinusCircle, Gift, Calculator, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
+import Loader from '../components/Loader';
 
 export default function Accounting() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -87,9 +88,7 @@ export default function Accounting() {
     } catch (err) { alert(err.response?.data?.error || 'Error distributing bonus'); }
   };
 
-  if (loading) return <div>Loading...</div>;
-
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <Loader text="Loading accounting..." />;
 
   const containerVariants = {
     hidden: { opacity: 0 },

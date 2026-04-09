@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import { Download, FileText, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound } from '../utils/sounds';
+import Loader from '../components/Loader';
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState('loans');
@@ -336,7 +337,7 @@ export default function Reports() {
 
         <div className="glass-panel" style={{ overflowX: 'auto' }}>
             {loading ? (
-                <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading report data...</div>
+                <Loader text="Loading report data..." />
             ) : data.length === 0 ? (
                 <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>No data found for the selected filters.</div>
             ) : (
