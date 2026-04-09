@@ -91,8 +91,8 @@ router.post('/', requireAdmin, async (req, res) => {
         const { category_id, amount, description, date } = req.body;
         const amountNum = Number(amount);
 
-        if (!category_id || !amountNum || amountNum <= 0 || !description || !date) {
-            return res.status(400).json({ error: 'All fields are required and amount must be positive' });
+        if (!category_id || !amountNum || amountNum <= 0 || !date) {
+            return res.status(400).json({ error: 'Date, Category, and positive amount are required' });
         }
 
         const category = await ExpenditureCategory.findById(category_id);
@@ -121,7 +121,7 @@ router.post('/', requireAdmin, async (req, res) => {
             amount: amountNum,
             balance_before: before,
             balance_after: balance.total_balance,
-            description: `Logged expenditure of ₹${amountNum} for ${category.name} (${description})`,
+            description: description ? description : `Expenditure for ${category.name}`,
             is_deduction: true,
             date: new Date(date)
         });
@@ -161,7 +161,7 @@ router.delete('/:id/undo', requireAdmin, async (req, res) => {
                 amount: expenditure.amount,
                 balance_before: before,
                 balance_after: balance.total_balance,
-                description: `Reversed expenditure of ₹${expenditure.amount} (${expenditure.description})`,
+                description: expenditure.description ? `(Undo) ${expenditure.description}` : `(Undo) Expenditure for amount ₹${expenditure.amount}`,
                 is_deduction: false,
                 date: new Date()
             });

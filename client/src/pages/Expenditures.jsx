@@ -77,7 +77,7 @@ export default function Expenditures() {
 
   const handleAddExpenditure = async (e) => {
     e.preventDefault();
-    if (!newExpCategoryId || !newExpAmount || !newExpDescription || !newExpDate) return;
+    if (!newExpCategoryId || !newExpAmount || !newExpDate) return;
     try {
       const res = await axios.post('/api/expenditures', {
         category_id: newExpCategoryId,
@@ -242,8 +242,8 @@ export default function Expenditures() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Description *</label>
-                  <input type="text" onFocus={playHoverSound} className="glass-input" placeholder="What was this for?" value={newExpDescription} onChange={e => setNewExpDescription(e.target.value)} required />
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Description</label>
+                  <input type="text" onFocus={playHoverSound} className="glass-input" placeholder="What was this for? (Optional)" value={newExpDescription} onChange={e => setNewExpDescription(e.target.value)} />
                 </div>
 
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onMouseEnter={playHoverSound} type="submit" className="glass-button" style={{ marginTop: '1rem', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444' }}>

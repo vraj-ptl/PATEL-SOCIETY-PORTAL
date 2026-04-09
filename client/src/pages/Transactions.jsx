@@ -45,7 +45,7 @@ export default function Transactions() {
       const headers = [['Date', 'Type', 'Description', 'Amount', 'Before', 'After']];
       
       const tableData = transactions.map(t => [
-          new Date(t.date).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }),
+          new Date(t.recorded_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }),
           t.type.replace(/_/g, ' '),
           t.description,
           `${t.is_deduction ? '-' : '+'} Rs. ${t.amount}`,
@@ -135,7 +135,7 @@ export default function Transactions() {
                         {transactions.map(t => (
                             <tr key={t._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                 <td style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                                    {new Date(t.date).toLocaleString('en-IN', {
+                                    {new Date(t.recorded_at).toLocaleString('en-IN', {
                                         day: '2-digit', month: '2-digit', year: 'numeric',
                                         hour: '2-digit', minute: '2-digit'
                                     })}

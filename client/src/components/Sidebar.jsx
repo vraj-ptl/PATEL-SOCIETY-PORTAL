@@ -72,11 +72,11 @@ export default function Sidebar() {
           <NavLink to="/expenditures" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
             <DollarSign size={20} /> <span className="nav-text">Expenditures</span>
           </NavLink>
-          <NavLink to="/reports" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
-            <BarChart2 size={20} /> <span className="nav-text">Reports</span>
-          </NavLink>
           <NavLink to="/transactions" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
             <List size={20} /> <span className="nav-text">Transactions</span>
+          </NavLink>
+          <NavLink to="/reports" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+            <BarChart2 size={20} /> <span className="nav-text">Reports</span>
           </NavLink>
           <NavLink to="/about" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
             <Info size={20} /> <span className="nav-text">About</span>
