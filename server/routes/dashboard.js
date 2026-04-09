@@ -22,7 +22,8 @@ router.get('/', requireLogin, async (req, res) => {
             active_loans: activeLoansCount,
             completed_loans: completedLoansCount,
             total_accounts: totalAccounts,
-            total_members: totalMembers
+            total_members: totalMembers,
+            total_expenditure: balance ? balance.total_expenditure : 0
         });
     } catch (err) {
         res.status(500).json({ error: err.message });

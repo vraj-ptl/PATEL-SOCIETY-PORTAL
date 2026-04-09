@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
-import { Home, Users, CreditCard, LogOut, Wallet, Calendar, Info, BarChart2 } from 'lucide-react';
+import { Home, Users, CreditCard, LogOut, Wallet, Calendar, Info, BarChart2, DollarSign } from 'lucide-react';
 import { playHoverSound, playClickSound } from '../utils/sounds';
 import { motion } from 'framer-motion';
 
@@ -56,6 +56,9 @@ export default function Sidebar() {
           </NavLink>
           <NavLink to="/reports" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
             <BarChart2 size={20} /> <span className="nav-text">Reports</span>
+          </NavLink>
+          <NavLink to="/expenditures" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+            <DollarSign size={20} /> <span className="nav-text">Expenditures</span>
           </NavLink>
           <NavLink to="/about" onClick={playClickSound} onMouseEnter={playHoverSound} className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
             <Info size={20} /> <span className="nav-text">About</span>
