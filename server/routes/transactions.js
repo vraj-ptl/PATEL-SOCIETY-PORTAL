@@ -27,4 +27,32 @@ router.get('/', requireLogin, async (req, res) => {
     }
 });
 
+// DELETE /api/transactions — Clear history
+router.delete('/', requireLogin, async (req, res) => {
+    try {
+        // Enforce Admin only
+        if (req.session.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Only admins can clear history' });
+        }
+
+        const { startDate, endDate } = req.query;
+        let query = {};
+
+        if (startDate && endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            
+            query.date = {
+                $gte: new Date(startDate),
+                $lte: end
+            };
+        }
+
+        const result = await Transaction.deleteMany(query);
+        res.json({ message: `Successfully cleared ${result.deletedCount} transaction records.` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

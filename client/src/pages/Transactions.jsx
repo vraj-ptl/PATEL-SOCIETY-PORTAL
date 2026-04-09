@@ -9,10 +9,40 @@ import { playHoverSound, playClickSound } from '../utils/sounds';
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // Date Filters
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  const checkRole = async () => {
+    try {
+      const res = await axios.get('/api/auth/me');
+      setIsAdmin(res.data.user?.role === 'admin');
+    } catch {}
+  };
+
+  const handleClearHistory = async () => {
+    let confirmMessage = 'Are you sure you want to clear ALL transaction history? This action CANNOT be undone.';
+    if (startDate && endDate) {
+      confirmMessage = `Are you sure you want to clear history from ${startDate} to ${endDate}? This action CANNOT be undone.`;
+    }
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      const params = {};
+      if (startDate && endDate) {
+          params.startDate = startDate;
+          params.endDate = endDate;
+      }
+      const res = await axios.delete('/api/transactions', { params });
+      alert(res.data.message);
+      fetchTransactions();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || 'Failed to clear history');
+    }
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -33,6 +63,7 @@ export default function Transactions() {
   };
 
   useEffect(() => {
+    checkRole();
     fetchTransactions();
   }, []);
 
@@ -112,6 +143,17 @@ export default function Transactions() {
             >
                 Apply
             </motion.button>
+            {isAdmin && (
+              <motion.button 
+                  whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                  className="glass-button" 
+                  style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', marginLeft: 'auto' }}
+                  onClick={() => { playClickSound(); handleClearHistory(); }} 
+                  onMouseEnter={playHoverSound}
+              >
+                  Clear History {startDate && endDate ? '(Selected Range)' : '(All)'}
+              </motion.button>
+            )}
         </div>
 
         <div className="glass-panel" style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
