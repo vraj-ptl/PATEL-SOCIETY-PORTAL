@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from '../utils/axios';
 import { Search, Plus, Trash2, ChevronDown, ChevronRight, X, User, Eye, EyeOff, Edit2, Check, UserPlus, Minus } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -343,7 +344,7 @@ export default function Members() {
       </motion.div>
 
       {/* View Member Details Modal */}
-      {viewMember && (
+      {viewMember && createPortal(
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '1rem' }} onClick={() => setViewMember(null)}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-panel" style={{ width: '100%', maxWidth: '450px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: 'var(--bg-dark)' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -399,10 +400,11 @@ export default function Members() {
               </div>
             </div>
           </motion.div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {showAddModal && (
+      {showAddModal && createPortal(
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-panel" style={{ width: '90%', maxWidth: '600px', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
@@ -464,7 +466,8 @@ export default function Members() {
               <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit" onMouseEnter={playHoverSound} onClick={playClickSound} className="glass-button" style={{ marginTop: '1rem' }}>Create Full Account</motion.button>
             </form>
           </motion.div>
-        </div>
+        </div>,
+        document.body
       )}
     </motion.div>
   );

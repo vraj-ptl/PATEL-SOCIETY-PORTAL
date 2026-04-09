@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from '../utils/axios';
 import { Search, History, Check, X, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
+
+const PortalWrapper = ({ isPortal, children }) => {
+  return isPortal ? createPortal(children, document.body) : <>{children}</>;
+};
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -202,7 +207,7 @@ export default function FeeTracker() {
 
       {/* Right Pane: Timeline (Normal on Desktop, Bottom Sheet on Mobile) */}
       {(!isMobile || showMobileTimeline) && (
-        <>
+        <PortalWrapper isPortal={isMobile}>
           {/* Faded Background Overlay for Mobile */}
           {isMobile && (
             <motion.div 
@@ -307,7 +312,7 @@ export default function FeeTracker() {
           </div>
         )}
           </motion.div>
-        </>
+        </PortalWrapper>
       )}
     </motion.div>
   );

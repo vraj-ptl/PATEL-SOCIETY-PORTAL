@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from '../utils/axios';
 import { Plus, Trash2, X, Undo2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { playHoverSound, playClickSound, playSuccessSound } from '../utils/sounds';
+
+const PortalWrapper = ({ isPortal, children }) => {
+  return isPortal ? createPortal(children, document.body) : <>{children}</>;
+};
 
 export default function Loans() {
   const [loans, setLoans] = useState([]);
@@ -224,7 +229,7 @@ export default function Loans() {
         </motion.div>
 
         {selectedLoanId && (!isMobile || showMobileInstallments) && (
-          <>
+          <PortalWrapper isPortal={isMobile}>
             {isMobile && (
               <motion.div 
                 initial={{ opacity: 0 }} 
@@ -296,12 +301,12 @@ export default function Loans() {
                 </div>
               ))}
             </div>
-          </motion.div>
-          </>
+            </motion.div>
+          </PortalWrapper>
         )}
       </div>
 
-      {showAddModal && (
+      {showAddModal && createPortal(
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-panel" style={{ width: '90%', maxWidth: '400px', padding: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
@@ -365,7 +370,8 @@ export default function Loans() {
               <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onMouseEnter={playHoverSound} type="submit" className="glass-button" style={{ marginTop: '0.5rem' }}>Open Loan</motion.button>
             </form>
           </motion.div>
-        </div>
+        </div>,
+        document.body
       )}
     </motion.div>
   );
