@@ -83,6 +83,7 @@ export default function Accounting() {
     try {
       const res = await axios.post('/api/dashboard/distribute-bonus', { bonusPerMember: bonusAmt });
       setBonusAmt('');
+      fetchCalculator();
       playSuccessSound();
       alert(res.data.message);
     } catch (err) { alert(err.response?.data?.error || 'Error distributing bonus'); }
@@ -181,7 +182,7 @@ export default function Accounting() {
             <input type="number" onFocus={playHoverSound} className="glass-input" placeholder="Bonus per Member (₹)" value={bonusAmt} onChange={e => setBonusAmt(e.target.value)} required />
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} type="submit" className="glass-button" style={{ background: '#ec4899' }}>Send</motion.button>
           </form>
-          <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Cost: ₹{bonusAmt ? (bonusAmt * (calculator?.current_member_count || 0)) : 0} from Society Balance. Goes to individual member wallets.</p>
+          <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Cost: ₹{bonusAmt ? (bonusAmt * (calculator?.current_member_count || 0)) : 0} from Available Society Balance. Goes to individual member wallets.</p>
           </motion.div>
           </>
         )}

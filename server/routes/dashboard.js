@@ -149,7 +149,7 @@ router.post('/distribute-bonus', async (req, res) => {
 
         let balance = await SocietyBalance.findOne();
         if (!balance || balance.total_balance < totalCost) {
-            return res.status(400).json({ error: 'Insufficient Society Balance to distribute bonus to all members' });
+            return res.status(400).json({ error: `Insufficient Available Society Balance (₹${balance ? balance.total_balance : 0}) to distribute ₹${totalCost} bonus to all members` });
         }
 
         const before = balance.total_balance;
@@ -161,7 +161,7 @@ router.post('/distribute-bonus', async (req, res) => {
             amount: totalCost,
             balance_before: before,
             balance_after: balance.total_balance,
-            description: `Distributed ₹${bonusPerMember} bonus to ${numMembers} members' virtual wallets.`,
+            description: `Distributed ₹${bonusPerMember} bonus to ${numMembers} members' virtual wallets. Deducted ₹${totalCost} from Available Society Balance.`,
             is_deduction: true,
             date: new Date()
         });
