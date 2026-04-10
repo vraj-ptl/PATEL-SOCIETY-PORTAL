@@ -63,7 +63,7 @@ export default function Dashboard() {
     e.preventDefault();
     if (!bonusAmt || bonusAmt <= 0) return;
     try {
-      const res = await axios.post('/api/dashboard/distribute-bonus', { bonusPerAccount: bonusAmt });
+      const res = await axios.post('/api/dashboard/distribute-bonus', { totalBonusAmount: bonusAmt });
       setBonusAmt('');
       fetchStats();
       playSuccessSound();

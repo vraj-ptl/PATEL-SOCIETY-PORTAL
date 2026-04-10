@@ -141,35 +141,37 @@ router.post('/distribute-bonus', async (req, res) => {
             return res.status(403).json({ error: 'Admin access required' });
         }
 
-        const { bonusPerMember } = req.body;
-        if (!bonusPerMember || bonusPerMember <= 0) return res.status(400).json({ error: 'Valid bonus required' });
+        const { totalBonusAmount } = req.body;
+        if (!totalBonusAmount || totalBonusAmount <= 0) return res.status(400).json({ error: 'Valid bonus amount required' });
 
         const numMembers = await Member.countDocuments();
-        const totalCost = numMembers * Number(bonusPerMember);
+        if (numMembers === 0) return res.status(400).json({ error: 'No members found to distribute bonus' });
+
+        const totalAmount = Number(totalBonusAmount);
+        const perMemberShare = Math.floor(totalAmount / numMembers);
 
         let balance = await SocietyBalance.findOne();
-        if (!balance || balance.total_balance < totalCost) {
-            return res.status(400).json({ error: `Insufficient Available Society Balance (₹${balance ? balance.total_balance : 0}) to distribute ₹${totalCost} bonus to all members` });
+        if (!balance || balance.total_balance < totalAmount) {
+            return res.status(400).json({ error: `Insufficient Available Society Balance (₹${balance ? balance.total_balance.toLocaleString() : 0}) to distribute ₹${totalAmount.toLocaleString()} bonus` });
         }
 
         const before = balance.total_balance;
-        balance.total_balance -= totalCost;
+        balance.total_balance -= totalAmount;
         await balance.save();
 
         await Transaction.create({
             type: 'ACCOUNTING',
-            amount: totalCost,
+            amount: totalAmount,
             balance_before: before,
             balance_after: balance.total_balance,
-            description: `Distributed ₹${bonusPerMember} bonus to ${numMembers} members' virtual wallets. Deducted ₹${totalCost} from Available Society Balance.`,
+            description: `Distributed ₹${totalAmount.toLocaleString()} bonus equally among ${numMembers} members (₹${perMemberShare.toLocaleString()} each). Deducted from Available Society Balance.`,
             is_deduction: true,
             date: new Date()
         });
 
-        // Bonus is now per-MEMBER wallet, not account!
-        await Member.updateMany({}, { $inc: { wallet_balance: Number(bonusPerMember) } });
+        await Member.updateMany({}, { $inc: { wallet_balance: perMemberShare } });
 
-        res.json({ message: `Distributed ₹${bonusPerMember} to ${numMembers} members successfully.` });
+        res.json({ message: `Distributed ₹${totalAmount.toLocaleString()} bonus to ${numMembers} members (₹${perMemberShare.toLocaleString()} each) successfully.` });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
