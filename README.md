@@ -12,6 +12,7 @@ To explore the application, you can use the following test credentials:
 **Member Access (User View)**
 - **Username:** `DKP`
 - **Password:** `DKP123`
+  
 **Admin Access (Management View)**
 - **Username:** `admin`
 - **Password:** `admin123`
