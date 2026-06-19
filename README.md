@@ -10,9 +10,8 @@ This is a comprehensive financial and membership management portal designed for 
 To explore the application, you can use the following test credentials:
 
 **Member Access (User View)**
-- **Username:** `dkp`
-- **Password:** `dkp123`
-
+- **Username:** `DKP`
+- **Password:** `DKP123`
 **Admin Access (Management View)**
 - **Username:** `admin`
 - **Password:** `admin123`
